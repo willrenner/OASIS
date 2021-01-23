@@ -3,8 +3,8 @@ clear;
 
 %read and send serial
 numberOfVars = 1;
-serialPort = serialport("COM3", 9600);
-configureTerminator(serialPort, "CR/LF"); %google this (means \r\n)
+% serialPort = serialport("COM3", 9600);
+% configureTerminator(serialPort, "CR/LF"); %google this (means \r\n)
 % a = arduino('COM3', 'Mega2560');
 % s = servo(a, 'D12');
 % configureCallback(serialPort, "terminator", @tester); %calls callbackFcn when the serial port contains a terminator; the arudino has sent all its data over serial
