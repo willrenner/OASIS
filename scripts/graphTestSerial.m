@@ -37,8 +37,7 @@ while (running)
     plot(ax1, tCurrent(end), data(end), '.k');
     plot(ax2, tCurrent(end), data(end), '.k');
     
-    
-
+  
 end
 
 
