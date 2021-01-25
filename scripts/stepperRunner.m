@@ -40,7 +40,7 @@ function timePerStep_ = getTimeFromROP(ropIn) %ROP in mm/min
     timePerStep_ = 1 / stepperRevSpeedCmd; %sec/step
 end
 
-function stepOnce(direction) %down if direction = 1
+function stepOnce(direction) 
 %     if (direction == "down")
 %         writeDigitalPin(a, directionPin, 1) %1 for down?
 %         writeDigitalPin(a, pulsePin, 1); %each step happens per pulse
