@@ -1,6 +1,6 @@
 clc;clear;
 hWaitbar = waitbar(0, 'Running...', 'Name', 'AARC','CreateCancelBtn','delete(gcbf)');
-fileID = fopen("../logs/abcd.txt", 'a'); %appends to end of file, or creates file and writes to it
+fileID = fopen("../logs/abcde.txt", 'a'); %appends to end of file, or creates file and writes to it
 format shortg; %smart formating
 pause on
 
@@ -19,7 +19,7 @@ while (a < 1500000)
         tic;
     end
     a = a + 1;
-    pause(0.05) % Sets fps essentially
+%     pause(0.05) % Sets fps essentially
     if (~ishandle(hWaitbar)) % Stop if cancel button was pressed
         disp('Stopped by user');
         break;
