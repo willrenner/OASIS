@@ -8,6 +8,16 @@ global numSteps;
 global currentStep;
 global prevTime
 global directionCmd;
+global WOB;
+global ROP;
+global augerArea;
+global drillTorque;
+global drillCurrent;
+global drillRPM;
+
+
+augerArea = pi * (0.02)^2;
+WOB = 0;
 currentStep = 0;
 leadScrewLead = 8; %mm/rev
 numSteps = 200; %steps/rev, 1.8deg/step
@@ -18,12 +28,12 @@ directionPin = "D2";
 limitSwitchPin = "D3";
 pumpPin = "D4";
 heaterPin = "D5";
-
+loadCellPin = "A1";
 currentYpos = 0; %once limit switch is reached
 
 
-rop = 10; %mm/min
-timePerStep = getTimeFromROP(rop); %calculate timePerStep
+ROP = 10; %mm/min
+timePerStep = getTimeFromROP(ROP); %calculate timePerStep
 run = true;
 homing = true;
 
@@ -35,7 +45,7 @@ while(run)
         if (readDigitalPin(a, limitSwitchPin) == 0)% not at switch yet
             timeSincePrev = toc(prevTime);
             checkIfTimeToStep(timeSincePrev);
-            timePerStep_ = getTimeFromROP(rop);
+            timePerStep_ = getTimeFromROP(ROP);
         elseif (readDigitalPin(a, limitSwitchPin) == 1) % reached the switch
             homing = false;
             break;
@@ -43,8 +53,12 @@ while(run)
     end
     timeSincePrev = toc(prevTime);
     checkIfTimeToStep(timeSincePrev);
-    timePerStep = getTimeFromROP(rop); %calculate timePerStep
+    timePerStep = getTimeFromROP(ROP); %calculate timePerStep
     currentYpos = currentStep / numSteps * leadScrewLead; %mm from limit switch
+    
+    %update all values
+    %get MSE value
+    %write to file
 end
 
 
@@ -107,4 +121,25 @@ function activateHeater(command)
     elseif (command == "off")
         writeDigitalPin(a, heaterPin, 0) %will be connected to relay or transistor
     end
+end
+
+function getWOB()
+    voltage = readVoltage(a, loadCellPin);
+    %do calcs to convert to a WOB
+
+    
+end
+
+
+
+
+function MSE_ = calcMSE()
+    global drillTorque;
+    global drillCurrent;
+    global drillRPM;
+    global augerArea;
+    global WOB;
+    global ROP;
+    
+    MSE_ = WOB/augerArea + drillTorque*drillRPM/(augerArea*ROP); %MSE equation
 end
