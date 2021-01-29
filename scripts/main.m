@@ -32,7 +32,7 @@ loadCellPin = "A1";
 currentYpos = 0; %once limit switch is reached
 
 
-ROP = 10; %mm/min
+ROP = 0; %mm/min
 timePerStep = getTimeFromROP(ROP); %calculate timePerStep
 run = true;
 homing = true;
@@ -68,7 +68,7 @@ end
 function timePerStep_ = getTimeFromROP(ropIn) %ROP in mm/min
     global leadScrewLead;
     global numSteps;
-    if (ropIn <= 1) %less than 1 mm per minute, just return max time per step so it won't move
+    if (ropIn <= 0.5) %less than 0.5 mm per minute, just return max time per step so it won't move
         timePerStep_ = 9999; %sec/step
     else
         stepperRevSpeedCmd = ropIn / leadScrewLead / 60; %rev/sec
