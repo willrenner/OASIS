@@ -8,7 +8,6 @@ global currentStep;
 global prevTime;
 global timePerStep;
 global prevLogTime;
-global currentYpos;
 
 pulsePin = "D1";
 directionPin = "D2";
@@ -18,7 +17,7 @@ currentYpos = 0; %once limit switch is reached
 directionCmd = "down";
 
 currentStep = 0;
-ROP = 1000; %mm/min
+ROP = 20; %mm/min
 run = true;
 prevTime = tic;
 prevLogTime = tic;
@@ -33,11 +32,7 @@ while(run)
     checkIfTimeToStep(timeSincePrev);
     timePerStep = getTimeFromROP(ROP); %calculate timePerStep
     currentYpos = currentStep / numSteps * leadScrewLead; %mm from limit switch
-    
-    if (toc(prevLogTime) > 0.5)
-        logData();
-        prevLogTime = tic;
-    end
+
 end
 
 function timePerStep_ = getTimeFromROP(ropIn) %ROP in mm/min
