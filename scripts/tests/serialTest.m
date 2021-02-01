@@ -12,10 +12,8 @@ rop_speed_cmd = 0;
 addpath('../../app');
 appHandle = arduinoApp;
 
-
 serialPort = serialport("COM3", 115200);
 configureTerminator(serialPort,"LF");
-serialPort.Timeout = 10;
 hWaitbar = waitbar(0, 'Running...', 'Name', 'AARC','CreateCancelBtn','delete(gcbf)');
 changed = false;
 readTime = tic;
@@ -49,14 +47,10 @@ configureCallback(serialPort,"off");
 delete(appHandle);
 clear serialPort;
 function ret = getValuesFromApp(appHand)
-    try %ignore try catch block-- doesnt do anything
+    try %if app is closed accidently warning appears
         dir = appHand.ROP_Direction_Cmd;
         speed = appHand.ROP_Speed_Cmd;
-        if (speed == 0.0)
-            ret = dir + ",0.0"; %weird thing on arduino side not reading int 0 correctly
-        else
-            ret = dir + "," + speed;
-        end
+        ret = dir + "," + speed;
     catch
         warning("App handle lost!");
     end
