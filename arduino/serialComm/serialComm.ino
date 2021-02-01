@@ -2,7 +2,7 @@
 
 uint8_t pin2 = 2;
 uint8_t pin3 = 3;
-AccelStepper stepper(1, pin2,pin3);
+AccelStepper stepper(1, pin2, pin3);
 
 struct controlCommands
 {
@@ -10,22 +10,16 @@ struct controlCommands
     double speed;
 };
 controlCommands cmds = {
-        .drillMovementDirection = 0,
-        .speed = 0
-    };
+    .drillMovementDirection = 0,
+    .speed = 0};
 
-const int numCmds = 2;
-const int sizeOfCmd = 40;
+const int numCmds = 2;    //num of vars in struct above
+const int sizeOfCmd = 40; //number of chars sent from matlab to arduino must be less than this
 
-
-long int printCount = 0;
 unsigned long currTime = 0;
 unsigned long prevTime = 0;
 const unsigned long sendRate = 100;
-String inputString = "";             // a String to hold incoming data
 bool incomingStringComplete = false; // whether the string is complete
-bool buildingIncomingData = false;
-int index;
 int currPosOfChar = 0;
 char cstring[sizeOfCmd];
 char *arrayOfcstring[numCmds];
@@ -56,7 +50,7 @@ void loop()
     }
 
     currTime = millis();
-    if (currTime - prevTime >= sendRate) //every 1 second
+    if (currTime - prevTime >= sendRate) //every (sendRate) ms
     {
         sendDataOut();
         prevTime = millis();
@@ -89,15 +83,13 @@ void serialEvent()
 void sendDataOut()
 {
     //send data back to serial
-
-    Serial.print(cmds.drillMovementDirection, DEC);
+    Serial.print(cmds.drillMovementDirection, DEC); //formated as int
     Serial.print(",");
-    Serial.print(cmds.speed, 2);
+    Serial.print(cmds.speed, 2); //formated as float to 2 decials
     Serial.print("\n");
 }
 void buildDataStruct()
 {
-    // Serial.println(arrayOfcstring[0]);
     //direction
     int speed = atoi(arrayOfcstring[0]);
     if (speed == 1)

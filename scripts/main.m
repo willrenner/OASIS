@@ -13,10 +13,9 @@ addpath('../../app');
 appHandle = arduinoApp;
 
 serialPort = serialport("COM4", 115200);
-configureTerminator(serialPort,"LF");
+configureTerminator(serialPort,"LF"); %sets newline as line ending
 hWaitbar = waitbar(0, 'Running...', 'Name', 'AARC','CreateCancelBtn','delete(gcbf)');
 changed = false;
-readTime = tic;
 changedTimer = tic;
 % count = 0;
 flush(serialPort); %so that data doesnt get clogged/backed up
@@ -46,11 +45,12 @@ disp('Stopped by user');
 configureCallback(serialPort,"off");
 delete(appHandle);
 clear serialPort;
-function ret = getValuesFromApp(appHand)
+
+function returnVal = getValuesFromApp(appHand)
     try %if app is closed accidently warning appears
         dir = appHand.ROP_Direction_Cmd;
         speed = appHand.ROP_Speed_Cmd;
-        ret = dir + "," + speed;
+        returnVal = dir + "," + speed;
     catch
         warning("App handle lost!");
     end
