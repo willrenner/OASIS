@@ -1,13 +1,22 @@
+#include <AccelStepper.h>
+
+uint8_t pin2 = 2;
+uint8_t pin3 = 3;
+AccelStepper stepper(1, pin2,pin3);
 
 struct controlCommands
 {
     int drillMovementDirection; // 1 for down
     double speed;
 };
-controlCommands cmds;
+controlCommands cmds = {
+        .drillMovementDirection = 0,
+        .speed = 0
+    };
 
 const int numCmds = 2;
 const int sizeOfCmd = 40;
+
 
 long int printCount = 0;
 unsigned long currTime = 0;
@@ -27,6 +36,7 @@ void buildDataStruct();
 void formatIncomingData();
 void setup()
 {
+    stepper.setMaxSpeed(400);
     Serial.begin(115200);
     while (!Serial)
     {
@@ -41,6 +51,7 @@ void loop()
     {
         formatIncomingData();
         buildDataStruct();
+        stepper.setSpeed((int)(cmds.speed * cmds.drillMovementDirection));
         incomingStringComplete = false;
     }
 
@@ -50,6 +61,7 @@ void loop()
         sendDataOut();
         prevTime = millis();
     }
+    stepper.runSpeed();
 }
 
 /*

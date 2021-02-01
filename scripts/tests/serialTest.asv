@@ -12,6 +12,7 @@ rop_speed_cmd = 0;
 addpath('../../app');
 appHandle = arduinoApp;
 
+
 serialPort = serialport("COM4", 115200);
 configureTerminator(serialPort,"LF");
 hWaitbar = waitbar(0, 'Running...', 'Name', 'AARC','CreateCancelBtn','delete(gcbf)');
