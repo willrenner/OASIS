@@ -7,11 +7,13 @@ AccelStepper stepper(1, pin2, pin3);
 struct controlCommands {
     int drillMovementDirection; // 1 for down
     double speed;
+    int positioncommand;
 };
 
 controlCommands cmds = {
     .drillMovementDirection = 0,
-    .speed = 0};
+    .speed = 0,
+    .positioncommand = 0};
 
 const int numCmds = 2;    //num of vars in struct above
 const int sizeOfCmd = 40; //number of chars sent from matlab to arduino must be less than this

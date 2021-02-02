@@ -22,9 +22,9 @@ void setup() {
   Serial.begin (9600);
   Serial.println("The code has initialized");
   Serial.println("the steps of the motor is set to 400");
-  MirageStepper.setMaxSpeed(100); // Steps per second
+  MirageStepper.setMaxSpeed(400); // Steps per second
   MirageStepper.setSpeed(400);
-  MirageStepper.setAcceleration(10); //Steps/sec^2
+  MirageStepper.setAcceleration(50); //Steps/sec^2
   steppers.addStepper(MirageStepper);
 } 
 
@@ -71,6 +71,18 @@ void checkSerial()
         MotorPositionFour();
         break;
       }
+       case '5':
+      {
+        Serial.println("we are at state 5");
+        MotorPositionFive();
+        break;
+      }
+      case '6':
+      {
+        Serial.println("we are at state 6");
+        MotorPositionSix();
+        break;
+      }
 
     }
     NewData = false;
@@ -81,40 +93,38 @@ void checkSerial()
 // Motor change
 void MotorPositionOne() 
   {
-    MirageStepper.moveTo(50);
-    MirageStepper.runToPosition(); //steps motor once every iteration 
+    MirageStepper.moveTo(67);
+    MirageStepper.runToPosition();
+    //steps motor once every iteration 
     Serial.println("The motor has stepped to the first position");
   }
 void MotorPositionTwo()
 {
-  MirageStepper.moveTo(100);
+  MirageStepper.moveTo(133);
   MirageStepper.runToPosition();
   Serial.println("The motor is in second position");
 }
 void MotorPositionThree()
 {
-  MirageStepper.moveTo(150);
+  MirageStepper.moveTo(200);
   MirageStepper.runToPosition();
   Serial.println("The motor is in third position");
 }
 void MotorPositionFour()
 {
-  MirageStepper.moveTo(200);
+  MirageStepper.moveTo(267);
   MirageStepper.runToPosition();
   Serial.println("The motor is in fourth position");
 }
-
-void MoveMotorBackOnePosition()
+void MotorPositionFive()
 {
-  MirageStepper.move(-50);
+  MirageStepper.moveTo(334);
   MirageStepper.runToPosition();
-  Serial.println("the motor has stepped back one position");
-  
+  Serial.println("The motor is in fifth position");
 }
-void ReturnHome()
+void MotorPositionSix()
 {
-  MirageStepper.moveTo(0);
-  MirageStepper.run();
-  Serial.println("the motor is returning home");
-  
+  MirageStepper.moveTo(400);
+  MirageStepper.runToPosition();
+  Serial.println("The motor is in sixth position");
 }

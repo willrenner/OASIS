@@ -24,8 +24,7 @@ while(1)
         changedTimer = tic;
     end
     if (changed)
-        %linetowrite = getValuesFromApp(appHandle);
-        linetowrite = "";
+        linetowrite = getValuesFromApp(appHandle);
         writeline(serialPort, linetowrite);
         changed = false;
     end
@@ -46,8 +45,8 @@ function returnVal = getValuesFromApp(appHand)
     try %if app is closed accidently warning appears
         dir = appHand.ROP_Direction_Cmd;
         speed = appHand.ROP_Speed_Cmd;
-        position = appHand.Position_Cmd;
-        returnVal = dir + "," + speed + "," + position;
+        %position = appHand.Position_Cmd;
+        returnVal = dir + "," + speed; %+ "," + position;
     catch
         warning("App handle lost!");
     end
