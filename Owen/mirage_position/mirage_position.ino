@@ -48,7 +48,7 @@ void checkSerial()
     {
       case '1':
       {
-        MoveMotorForwardOnePosition();
+        MotorPositionOne();
         Serial.println("we are at state 1");
          //calls the function to move one position forward
         break;
@@ -56,45 +56,22 @@ void checkSerial()
       case '2':
       {
         Serial.println("we are at state 2");
-        MoveMotorForwardOnePosition();
+        MotorPositionTwo();
         break;
       }
       case '3':
       {
         Serial.println("we are at state 3");
-        MoveMotorForwardOnePosition();
+        MotorPositionThree();
         break;
       }
       case '4':
       {
         Serial.println("we are at state 4");
-        MoveMotorForwardOnePosition();
+        MotorPositionFour();
         break;
       }
-      case '5':
-      {
-        Serial.println("we are at state 5");
-        MoveMotorBackOnePosition();
-        break;
-      }
-      case '6':
-      {
-        Serial.println("we are at state 6");
-        MoveMotorBackOnePosition();
-        break;
-      }
-      case '7':
-      {
-        Serial.println("we are at state 7");
-        MoveMotorBackOnePosition();
-        break;
-      }
-     case '8':
-      {
-        Serial.println("we are at state 8");
-        MoveMotorBackOnePosition();
-        break;
-      }
+
     }
     NewData = false;
   }
@@ -102,17 +79,34 @@ void checkSerial()
   }
 }
 // Motor change
-void MoveMotorForwardOnePosition() {
+void MotorPositionOne() 
   {
-    MirageStepper.move(60);
+    MirageStepper.moveTo(50);
     MirageStepper.runToPosition(); //steps motor once every iteration 
-    Serial.println("The motor has stepped one position");
+    Serial.println("The motor has stepped to the first position");
   }
-  //I want this function to move the motor one position right
+void MotorPositionTwo()
+{
+  MirageStepper.moveTo(100);
+  MirageStepper.runToPosition();
+  Serial.println("The motor is in second position");
 }
+void MotorPositionThree()
+{
+  MirageStepper.moveTo(150);
+  MirageStepper.runToPosition();
+  Serial.println("The motor is in third position");
+}
+void MotorPositionFour()
+{
+  MirageStepper.moveTo(200);
+  MirageStepper.runToPosition();
+  Serial.println("The motor is in fourth position");
+}
+
 void MoveMotorBackOnePosition()
 {
-  MirageStepper.move(-60);
+  MirageStepper.move(-50);
   MirageStepper.runToPosition();
   Serial.println("the motor has stepped back one position");
   
