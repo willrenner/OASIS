@@ -4,11 +4,11 @@ uint8_t pin2 = 2;
 uint8_t pin3 = 3;
 AccelStepper stepper(1, pin2, pin3);
 
-struct controlCommands
-{
+struct controlCommands {
     int drillMovementDirection; // 1 for down
     double speed;
 };
+
 controlCommands cmds = {
     .drillMovementDirection = 0,
     .speed = 0};
@@ -28,10 +28,11 @@ char *myPointer;
 void sendDataOut();
 void buildDataStruct();
 void formatIncomingData();
-void setup()
-{
+void setup() {
     stepper.setMaxSpeed(400);
-    Serial.begin(115200);
+
+
+Serial.begin(115200);
     while (!Serial)
     {
         ; // wait for serial port to connect. Needed for native USB port only

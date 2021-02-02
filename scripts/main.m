@@ -4,12 +4,7 @@ global dataRecieved;
 data = "";
 dataRecieved = false;
 
-rop_direction_cmd = 0;
-drilling_mode = 0;
-rop_speed_cmd = 0;
-
-
-addpath('../../app');
+addpath('../../app'); %to be able to run next line to open app
 appHandle = arduinoApp;
 
 serialPort = serialport("COM4", 115200);
