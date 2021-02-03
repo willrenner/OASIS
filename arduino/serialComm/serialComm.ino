@@ -23,7 +23,7 @@ unsigned long currTime = 0;
 unsigned long prevTime = 0;
 const unsigned long sendRate = 100;
 bool incomingStringComplete = false; // whether the string is complete
-int currPosOfChar = 0;
+int currPosOfChar = 0; //
 char cstring[sizeOfCmd];
 char *arrayOfcstring[numCmds];
 char *myPointer;
