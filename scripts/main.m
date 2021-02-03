@@ -24,8 +24,7 @@ while(1)
         changedTimer = tic;
     end
     if (changed)
-        %linetowrite = getValuesFromApp(appHandle);
-        linetowrite = "";
+        linetowrite = getValuesFromApp(appHandle);
         writeline(serialPort, linetowrite);
         changed = false;
     end

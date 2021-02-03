@@ -3,6 +3,7 @@
 uint8_t pin2 = 2;
 uint8_t pin3 = 3;
 AccelStepper stepper(1, pin2, pin3);
+AccelStepper MirageStepper(1, 8, 9);
 
 struct controlCommands {
     int drillMovementDirection; // 1 for down
@@ -15,7 +16,7 @@ controlCommands cmds = {
     .speed = 0,
     .positioncommand = 0};
 
-const int numCmds = 2;    //num of vars in struct above
+const int numCmds = 3;    //num of vars in struct above
 const int sizeOfCmd = 40; //number of chars sent from matlab to arduino must be less than this
 
 unsigned long currTime = 0;
@@ -32,6 +33,9 @@ void buildDataStruct();
 void formatIncomingData();
 void setup() {
     stepper.setMaxSpeed(400);
+    MirageStepper.setMaxSpeed(400); // Steps per second
+    MirageStepper.setSpeed(400);
+    MirageStepper.setAcceleration(50); //Steps/sec^2
 
 
 Serial.begin(115200);
@@ -89,6 +93,13 @@ void sendDataOut()
     Serial.print(cmds.drillMovementDirection, DEC); //formated as int
     Serial.print(",");
     Serial.print(cmds.speed, 2); //formated as float to 2 decials
+    Serial.print(",");
+    Serial.print(cmds.positioncommand, DEC);
+    
+    
+    
+    
+    
     Serial.print("\n");
 }
 void buildDataStruct()
@@ -110,6 +121,25 @@ void buildDataStruct()
     //speed
     cmds.speed = atof(arrayOfcstring[1]);
     // Serial.println(cmds.speed, 2);
+    int positioncommand = atoi(arrayOfcstring[2]);
+    if (positioncommand == 1){
+      MotorPositionOne();
+    }
+    if (positioncommand == 2){
+      MotorPositionTwo();
+    }
+    if (positioncommand == 3){
+      MotorPositionThree();
+    }
+    if (positioncommand == 4){
+      MotorPositionFour();
+    }
+    if (positioncommand == 5){
+      MotorPositionFive();
+    }
+    if (positioncommand == 6){
+      MotorPositionSix();
+    }
 }
 void formatIncomingData()
 {
@@ -123,4 +153,38 @@ void formatIncomingData()
         count++;
     }
     // Serial.println("here: " + String(arrayOfcstring[1]));
+}
+
+// Mirage Position Code
+// Motor change
+void MotorPositionOne() 
+{
+  MirageStepper.moveTo(67);
+  MirageStepper.runToPosition();
+  //steps motor once every iteration 
+}
+void MotorPositionTwo()
+{
+  MirageStepper.moveTo(133);
+  MirageStepper.runToPosition();
+}
+void MotorPositionThree()
+{
+  MirageStepper.moveTo(200);
+  MirageStepper.runToPosition();
+}
+void MotorPositionFour()
+{
+  MirageStepper.moveTo(267);
+  MirageStepper.runToPosition();
+}
+void MotorPositionFive()
+{
+  MirageStepper.moveTo(334);
+  MirageStepper.runToPosition();
+}
+void MotorPositionSix()
+{
+  MirageStepper.moveTo(400);
+  MirageStepper.runToPosition();
 }
