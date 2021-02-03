@@ -50,9 +50,10 @@ void loop()
 {
     if (incomingStringComplete)
     {
-        formatIncomingData();
-        buildDataStruct();
-        stepper.setSpeed((int)(cmds.speed * cmds.drillMovementDirection));
+        formatIncomingData(); //formats cmds data
+        buildDataStruct(); //formats cmds data struct
+        stepper.setSpeed((int)(cmds.speed * cmds.drillMovementDirection)); //sets drill vertical speed
+        chooseMotorPosition(cmds.positioncommand); //move mirage stepper to set pos
         incomingStringComplete = false;
     }
 
@@ -63,6 +64,8 @@ void loop()
         prevTime = millis();
     }
     stepper.runSpeed();
+    MirageStepper.run();
+    
 }
 
 /*
@@ -80,7 +83,7 @@ void serialEvent()
             cstring[currPosOfChar] = NULL; //end char array in null char
             incomingStringComplete = true;
             currPosOfChar = 0;
-            // Serial.print("Arduino Recieved: " + String(cstring) + "\n");
+//            Serial.print("Arduino Recieved: " + String(cstring) + "\n");
             break;
         }
         cstring[currPosOfChar] = inChar;
@@ -97,9 +100,7 @@ void sendDataOut()
     Serial.print(cmds.positioncommand, DEC);
     
     
-    
-    
-    
+
     Serial.print("\n");
 }
 void buildDataStruct()
@@ -122,7 +123,24 @@ void buildDataStruct()
     cmds.speed = atof(arrayOfcstring[1]);
     // Serial.println(cmds.speed, 2);
     int positioncommand = atoi(arrayOfcstring[2]);
-    if (positioncommand == 1){
+    // Serial.println(positioncommand);
+    cmds.positioncommand = positioncommand;
+}
+void formatIncomingData()
+{
+    //put stuff into correct array format
+    int count = 0;
+    myPointer = strtok(cstring, ",");
+    while (myPointer != NULL)
+    {
+        arrayOfcstring[count] = myPointer;
+        myPointer = strtok(NULL, ",");
+        count++;
+    }
+    // Serial.println("here: " + String(arrayOfcstring[1]));
+}
+void chooseMotorPosition(int positioncommand) {
+  if (positioncommand == 1){
       MotorPositionOne();
     }
     if (positioncommand == 2){
@@ -141,50 +159,38 @@ void buildDataStruct()
       MotorPositionSix();
     }
 }
-void formatIncomingData()
-{
-    //put stuff into correct array format
-    int count = 0;
-    myPointer = strtok(cstring, ",");
-    while (myPointer != NULL)
-    {
-        arrayOfcstring[count] = myPointer;
-        myPointer = strtok(NULL, ",");
-        count++;
-    }
-    // Serial.println("here: " + String(arrayOfcstring[1]));
-}
-
 // Mirage Position Code
 // Motor change
 void MotorPositionOne() 
 {
   MirageStepper.moveTo(67);
-  MirageStepper.runToPosition();
+
   //steps motor once every iteration 
 }
 void MotorPositionTwo()
 {
+  Serial.println("here1");
   MirageStepper.moveTo(133);
-  MirageStepper.runToPosition();
+
+  Serial.println("here2");
 }
 void MotorPositionThree()
 {
   MirageStepper.moveTo(200);
-  MirageStepper.runToPosition();
+
 }
 void MotorPositionFour()
 {
   MirageStepper.moveTo(267);
-  MirageStepper.runToPosition();
+
 }
 void MotorPositionFive()
 {
   MirageStepper.moveTo(334);
-  MirageStepper.runToPosition();
+
 }
 void MotorPositionSix()
 {
   MirageStepper.moveTo(400);
-  MirageStepper.runToPosition();
+
 }

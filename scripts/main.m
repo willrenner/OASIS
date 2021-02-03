@@ -43,9 +43,9 @@ clear serialPort;
 
 function returnVal = getValuesFromApp(appHand)
     try %if app is closed accidently warning appears
-        dir = appHand.ROP_Direction_Cmd;
-        speed = appHand.ROP_Speed_Cmd;
-        position = appHand.Position_Cmd;
+        dir = appHand.ROP_Direction_Cmd; %drill dir
+        speed = appHand.ROP_Speed_Cmd; %drill speed
+        position = appHand.Position_Cmd; %mirage position
         returnVal = dir + "," + speed + "," + position;
     catch
         warning("App handle lost!");
