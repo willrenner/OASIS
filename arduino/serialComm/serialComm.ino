@@ -1,4 +1,4 @@
-#include <AccelStepper.h>
+#include "AccelStepper.h"
 // automatically includes arduino.h??
 uint8_t pin2 = 2;
 uint8_t pin3 = 3;
@@ -30,7 +30,7 @@ char cstring[sizeOfCmd];
 char *arrayOfcstring[numCmds];
 char *myPointer;
 
-float augerArea =  PI * (0.02)^2;
+// float augerArea =  PI * (0.02)^2;
 float WOB = 0;
 int currentStep = 0;
 int leadScrewLead = 8; // mm/rev
@@ -187,8 +187,8 @@ void activatePump(int command) {
   }
 }
 void getMSE() {
-  float drillTorque = getDrillTorque();
-  float drillRPM = getDrillRPM();
-  float ROP = cmds.speed;
-  float MSE = WOB/augerArea + drillTorque*drillRPM/(augerArea*ROP); //MSE equation
+  // float drillTorque = getDrillTorque();
+  // float drillRPM = getDrillRPM();
+  // float ROP = cmds.speed;
+  // float MSE = WOB/augerArea + drillTorque*drillRPM/(augerArea*ROP); //MSE equation
 }
