@@ -1,36 +1,42 @@
 #include <AccelStepper.h>
-
+// automatically includes arduino.h??
 uint8_t pin2 = 2;
 uint8_t pin3 = 3;
 AccelStepper stepper(1, pin2, pin3);
 AccelStepper MirageStepper(1, 8, 9);
 
 struct controlCommands {
+    int controlMode; // 1 for manual rop control, 0 for automatic (pid)
     int drillMovementDirection; // 1 for down
     double speed;
-    int positioncommand;
+    int miragePositionCmd;
 };
 
 controlCommands cmds = {
+    .controlMode = 1,
     .drillMovementDirection = 0,
     .speed = 0,
-    .positioncommand = 0};
+    .miragePositionCmd = 0};
 
-const int numCmds = 3;    //num of vars in struct above
+const int numCmds = 4;    //num of vars in struct above
 const int sizeOfCmd = 40; //number of chars sent from matlab to arduino must be less than this
 
 unsigned long currTime = 0;
 unsigned long prevTime = 0;
-const unsigned long sendRate = 100;
+const unsigned long sendRate = 100; //ms
 bool incomingStringComplete = false; // whether the string is complete
 int currPosOfChar = 0; //
 char cstring[sizeOfCmd];
 char *arrayOfcstring[numCmds];
 char *myPointer;
 
-void sendDataOut();
-void buildDataStruct();
-void formatIncomingData();
+float augerArea =  PI * (0.02)^2;
+float WOB = 0;
+int currentStep = 0;
+int leadScrewLead = 8; // mm/rev
+int numSteps = 200; // (per rev) steps/rev, 1.8deg/step
+
+
 void setup() {
     stepper.setMaxSpeed(400);
     MirageStepper.setMaxSpeed(400); // Steps per second
@@ -53,7 +59,7 @@ void loop()
         formatIncomingData(); //formats cmds data
         buildDataStruct(); //formats cmds data struct
         stepper.setSpeed((int)(cmds.speed * cmds.drillMovementDirection)); //sets drill vertical speed
-        chooseMotorPosition(cmds.positioncommand); //move mirage stepper to set pos
+        chooseMotorPosition(cmds.miragePositionCmd); //move mirage stepper to set pos
         incomingStringComplete = false;
     }
 
@@ -73,6 +79,19 @@ void loop()
   routine is run between each time loop() runs, so using delay inside loop can
   delay response. Multiple bytes of data may be available.
 */
+
+void sendDataOut()
+{
+    //send data back to serial
+    Serial.print(cmds.controlMode, DEC); //formated as int
+    Serial.print(",");
+    Serial.print(cmds.drillMovementDirection, DEC); //formated as int
+    Serial.print(",");
+    Serial.print(cmds.speed, 2); //formated as float to 2 decials
+    Serial.print(",");
+    Serial.print(cmds.miragePositionCmd, DEC); //formated as int
+    Serial.print("\n"); //serial terminator
+}
 void serialEvent()
 {
     while (Serial.available())
@@ -90,42 +109,6 @@ void serialEvent()
         currPosOfChar++;
     }
 }
-void sendDataOut()
-{
-    //send data back to serial
-    Serial.print(cmds.drillMovementDirection, DEC); //formated as int
-    Serial.print(",");
-    Serial.print(cmds.speed, 2); //formated as float to 2 decials
-    Serial.print(",");
-    Serial.print(cmds.positioncommand, DEC);
-    
-    
-
-    Serial.print("\n");
-}
-void buildDataStruct()
-{
-    //direction
-    int speed = atoi(arrayOfcstring[0]);
-    if (speed == 1)
-    {
-        cmds.drillMovementDirection = 1;
-    }
-    else if (speed == -1)
-    {
-        cmds.drillMovementDirection = -1;
-    }
-    else
-    {
-        cmds.drillMovementDirection = 0;
-    }
-    //speed
-    cmds.speed = atof(arrayOfcstring[1]);
-    // Serial.println(cmds.speed, 2);
-    int positioncommand = atoi(arrayOfcstring[2]);
-    // Serial.println(positioncommand);
-    cmds.positioncommand = positioncommand;
-}
 void formatIncomingData()
 {
     //put stuff into correct array format
@@ -139,58 +122,73 @@ void formatIncomingData()
     }
     // Serial.println("here: " + String(arrayOfcstring[1]));
 }
-void chooseMotorPosition(int positioncommand) {
-  if (positioncommand == 1){
-      MotorPositionOne();
+void buildDataStruct()
+{
+    //mode
+    cmds.controlMode = atoi(arrayOfcstring[0]);
+    //direction
+    int speed = atoi(arrayOfcstring[1]);
+    if (speed == 1)
+    {
+        cmds.drillMovementDirection = 1;
     }
-    if (positioncommand == 2){
-      MotorPositionTwo();
+    else if (speed == -1)
+    {
+        cmds.drillMovementDirection = -1;
     }
-    if (positioncommand == 3){
-      MotorPositionThree();
+    else
+    {
+        cmds.drillMovementDirection = 0;
     }
-    if (positioncommand == 4){
-      MotorPositionFour();
+    //speed
+    cmds.speed = atof(arrayOfcstring[2]);
+    //mirage pos
+    cmds.miragePositionCmd = atoi(arrayOfcstring[3]);
+}
+void chooseMotorPosition(int pos) {
+  if (pos == 1){
+      MirageStepper.moveTo(67);
     }
-    if (positioncommand == 5){
-      MotorPositionFive();
+    if (pos == 2){
+      MirageStepper.moveTo(133);
     }
-    if (positioncommand == 6){
-      MotorPositionSix();
+    if (pos == 3){
+        MirageStepper.moveTo(200);
+    }
+    if (pos == 4){
+        MirageStepper.moveTo(267);
+    }
+    if (pos == 5){
+        MirageStepper.moveTo(334);
+    }
+    if (pos == 6){
+        MirageStepper.moveTo(400);
     }
 }
-// Mirage Position Code
-// Motor change
-void MotorPositionOne() 
-{
-  MirageStepper.moveTo(67);
 
-  //steps motor once every iteration 
+void activateHeater(int command) {
+  if (command == 1) {
+    //set arduino pins connected to relay high
+  }
+  else if (command == 0) {
+    //set arduino pins connected to relay low
+  }
 }
-void MotorPositionTwo()
-{
-  Serial.println("here1");
-  MirageStepper.moveTo(133);
 
-  Serial.println("here2");
+void activatePump(int command) {
+  if (command == 1) {
+    //set arduino pins connected to relay high
+  }
+  else if (command == 0) {
+    //set arduino pins connected to relay low
+  }
+  else if (command == -1) {
+    //reverse pump ??
+  }
 }
-void MotorPositionThree()
-{
-  MirageStepper.moveTo(200);
-
-}
-void MotorPositionFour()
-{
-  MirageStepper.moveTo(267);
-
-}
-void MotorPositionFive()
-{
-  MirageStepper.moveTo(334);
-
-}
-void MotorPositionSix()
-{
-  MirageStepper.moveTo(400);
-
+void getMSE() {
+  float drillTorque = getDrillTorque();
+  float drillRPM = getDrillRPM();
+  float ROP = cmds.speed;
+  float MSE = WOB/augerArea + drillTorque*drillRPM/(augerArea*ROP); //MSE equation
 }
