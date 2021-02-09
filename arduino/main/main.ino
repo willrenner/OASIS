@@ -2,7 +2,7 @@
 // automatically includes arduino.h??
 uint8_t pin2 = 2;
 uint8_t pin3 = 3;
-AccelStepper stepper(1, pin2, pin3);
+AccelStepper DrillStepper(1, pin2, pin3);
 AccelStepper MirageStepper(1, 8, 9);
 
 struct controlCommands {
@@ -10,13 +10,16 @@ struct controlCommands {
     int drillMovementDirection; // 1 for down
     double speed;
     int miragePositionCmd;
+    int drillLimitSwitchActive;
 };
 
 controlCommands cmds = {
     .controlMode = 1,
     .drillMovementDirection = 0,
     .speed = 0,
-    .miragePositionCmd = 0};
+    .miragePositionCmd = 0
+    .drillLimitSwitchActive = 0;
+    };
 
 const int numCmds = 4;    //num of vars in struct above
 const int sizeOfCmd = 40; //number of chars sent from matlab to arduino must be less than this
@@ -38,11 +41,12 @@ int numSteps = 200; // (per rev) steps/rev, 1.8deg/step
 
 
 void setup() {
-    stepper.setMaxSpeed(400);
+    DrillStepper.setMaxSpeed(400);
     MirageStepper.setMaxSpeed(400); // Steps per second
     MirageStepper.setSpeed(400);
     MirageStepper.setAcceleration(50); //Steps/sec^2
     
+
     Serial.begin(115200);
     while (!Serial)
     {
@@ -52,23 +56,39 @@ void setup() {
 }
 
 void loop()
-{
-    if (incomingStringComplete)
+{   
+	checkLimitSwitches();
+    	if (cmds.drillLimitSwitchActive == 1) { //limit switch reached
+			DrillStepper.setCurrentPosition(0); //resets internal accellstepper tracker
+			if (cmds.drillMovementDirection == -1) { //so moving up
+				cmds.drillMovementDirection = 1; //change it to down
+				DrillStepper.setSpeed((int)(cmds.speed * cmds.drillMovementDirection)); //sets drill vertical speed
+			} 
+		}
+		else {
+			DrillStepper.setSpeed((int)(cmds.speed * cmds.drillMovementDirection)); //sets drill vertical speed
+		}
+	
+	chooseMotorPosition(cmds.miragePositionCmd); //move mirage stepper to set pos
+
+
+	
+	
+	
+	if (incomingStringComplete)
     {
         formatIncomingData(); //formats cmds data
         buildDataStruct(); //formats cmds data struct
-        stepper.setSpeed((int)(cmds.speed * cmds.drillMovementDirection)); //sets drill vertical speed
-        chooseMotorPosition(cmds.miragePositionCmd); //move mirage stepper to set pos
+        runCommands();
         incomingStringComplete = false;
     }
-
     currTime = millis();
     if (currTime - prevTime >= sendRate) //every (sendRate) ms
     {
         sendDataOut();
         prevTime = millis();
     }
-    stepper.runSpeed();
+    DrillStepper.runSpeed();
     MirageStepper.run();
     
 }
@@ -101,7 +121,7 @@ void serialEvent()
             cstring[currPosOfChar] = NULL; //end char array in null char
             incomingStringComplete = true;
             currPosOfChar = 0;
-//            Serial.print("Arduino Recieved: " + String(cstring) + "\n");
+            // Serial.print("Arduino Recieved: " + String(cstring) + "\n");
             break;
         }
         cstring[currPosOfChar] = inChar;
@@ -144,6 +164,9 @@ void buildDataStruct()
     //mirage pos
     cmds.miragePositionCmd = atoi(arrayOfcstring[3]);
 }
+
+
+
 void chooseMotorPosition(int pos) {
   if (pos == 1){
       MirageStepper.moveTo(67);
@@ -190,4 +213,14 @@ void getMSE() {
   // float drillRPM = getDrillRPM();
   // float ROP = cmds.speed;
   // float MSE = WOB/augerArea + drillTorque*drillRPM/(augerArea*ROP); //MSE equation
+}
+
+void checkLimitSwitches() {
+	// check the pin
+	// if curr pin status != pin status (reduce number of writings)
+		// if the pin is high,
+		// cmds.drillLimitSwitchActive = 1;
+		// else
+		// if
+		// cmds.drillLimitSwitchActive = 1;
 }
