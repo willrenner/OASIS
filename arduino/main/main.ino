@@ -10,7 +10,7 @@ struct controlCommands {
     int drillMovementDirection; // 1 for down
     double speed;
     int miragePositionCmd;
-    int drillLimitSwitchActive;
+    int drillZeroCommand;
 };
 
 controlCommands cmds = {
@@ -18,8 +18,8 @@ controlCommands cmds = {
     .drillMovementDirection = 0,
     .speed = 0,
     .miragePositionCmd = 0
-    .drillLimitSwitchActive = 0;
-    };
+    .zeroCommand = 0;
+};
 
 const int numCmds = 4;    //num of vars in struct above
 const int sizeOfCmd = 40; //number of chars sent from matlab to arduino must be less than this
@@ -30,67 +30,74 @@ const unsigned long sendRate = 100; //ms
 bool incomingStringComplete = false; // whether the string is complete
 int currPosOfChar = 0; //
 char cstring[sizeOfCmd];
-char *arrayOfcstring[numCmds];
-char *myPointer;
+char* arrayOfcstring[numCmds];
+char* myPointer;
 
 // float augerArea =  PI * (0.02)^2;
 float WOB = 0;
-int currentStep = 0;
+float targetWOB = 100; //Newtons
+float WOBerror = 0; //pid
+float WOBcumulativeError = 0;
+float WOBrateError = 0;
+float WOBprevError = 0;
+float PIDspeedCmd = 0;
+float Kp = 0; //pid
+float Kd = 0; //pid
+float Ki = 0;
+float WOBcurrTime = 0;
+float WOBprevTime = 0;
+double WOBelapsedTime = 0;
+
 int leadScrewLead = 8; // mm/rev
-int numSteps = 200; // (per rev) steps/rev, 1.8deg/step
+int stepsPerRev = 200; // (per rev) steps/rev, 1.8deg/step
+float drillStepperMaxSpeed = 800; //steps per sec, over 1000 makes setSpeed() unreliable
+float PIDstepperMaxSpeed = 400; //steps per sec
+float zeroingStepperMaxSpeed = 800; //steps per sec
+
+int drillLimitSwitchActive = 0;
+
 
 
 void setup() {
-    DrillStepper.setMaxSpeed(400);
+    DrillStepper.setMaxSpeed(drillStepperMaxSpeed);
     MirageStepper.setMaxSpeed(400); // Steps per second
     MirageStepper.setSpeed(400);
     MirageStepper.setAcceleration(50); //Steps/sec^2
-    
 
     Serial.begin(115200);
-    while (!Serial)
-    {
+    while (!Serial) {
         ; // wait for serial port to connect. Needed for native USB port only
     }
     Serial.flush();
 }
 
-void loop()
-{   
-	checkLimitSwitches();
-    	if (cmds.drillLimitSwitchActive == 1) { //limit switch reached
-			DrillStepper.setCurrentPosition(0); //resets internal accellstepper tracker
-			if (cmds.drillMovementDirection == -1) { //so moving up
-				cmds.drillMovementDirection = 1; //change it to down
-				DrillStepper.setSpeed((int)(cmds.speed * cmds.drillMovementDirection)); //sets drill vertical speed
-			} 
-		}
-		else {
-			DrillStepper.setSpeed((int)(cmds.speed * cmds.drillMovementDirection)); //sets drill vertical speed
-		}
-	
-	chooseMotorPosition(cmds.miragePositionCmd); //move mirage stepper to set pos
+void loop() {
+    checkLimitSwitches();
+    //update wob
+    //update current
+    //update other stuff
 
-
-	
-	
-	
-	if (incomingStringComplete)
-    {
-        formatIncomingData(); //formats cmds data
-        buildDataStruct(); //formats cmds data struct
-        runCommands();
-        incomingStringComplete = false;
+    if (drillLimitSwitchActive == 1) { //limit switch reached
+        DrillStepper.setCurrentPosition(0); //resets internal accellstepper position tracker, ALSO sets speed to 0
+        if (cmds.drillMovementDirection == 1) { //moving down
+            DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection); //sets drill vertical speed
+        }
     }
-    currTime = millis();
-    if (currTime - prevTime >= sendRate) //every (sendRate) ms
-    {
-        sendDataOut();
-        prevTime = millis();
+    else {
+        if (cmds.zeroCommand == 1) { //zeroing
+            DrillStepper.setSpeed(zeroingStepperMaxSpeed * -1) // moveup
+        }
+        else if (cmds.controlMode == 0) { //automatic/limit WOB/pid control mode
+            setPIDcmd();
+            DrillStepper.setSpeed(PIDspeedCmd);
+        }
     }
-    DrillStepper.runSpeed();
     MirageStepper.run();
-    
+    DrillStepper.runSpeed();
+
+    chooseMotorPosition(cmds.miragePositionCmd); //move mirage stepper to set pos
+
+    doHousekeeping();
 }
 
 /*
@@ -99,8 +106,14 @@ void loop()
   delay response. Multiple bytes of data may be available.
 */
 
-void sendDataOut()
-{
+void sendDataOut() {
+    int drillStepperPos = DrillStepper.currentPosition() / stepsPerRev * leadScrewLead; //mm from limit switch, add offset to get pos of tip of drillbit
+    //WOB
+    //RPM
+    //Current
+    //
+
+    //
     //send data back to serial
     Serial.print(cmds.controlMode, DEC); //formated as int
     Serial.print(",");
@@ -111,13 +124,10 @@ void sendDataOut()
     Serial.print(cmds.miragePositionCmd, DEC); //formated as int
     Serial.print("\n"); //serial terminator
 }
-void serialEvent()
-{
-    while (Serial.available())
-    {
+void serialEvent() {
+    while (Serial.available()) {
         char inChar = (char)Serial.read();
-        if (inChar == '\n')
-        {
+        if (inChar == '\n') {
             cstring[currPosOfChar] = NULL; //end char array in null char
             incomingStringComplete = true;
             currPosOfChar = 0;
@@ -128,35 +138,29 @@ void serialEvent()
         currPosOfChar++;
     }
 }
-void formatIncomingData()
-{
+void formatIncomingData() {
     //put stuff into correct array format
     int count = 0;
     myPointer = strtok(cstring, ",");
-    while (myPointer != NULL)
-    {
+    while (myPointer != NULL) {
         arrayOfcstring[count] = myPointer;
         myPointer = strtok(NULL, ",");
         count++;
     }
     // Serial.println("here: " + String(arrayOfcstring[1]));
 }
-void buildDataStruct()
-{
+void buildDataStruct() {
     //mode
     cmds.controlMode = atoi(arrayOfcstring[0]);
     //direction
     int speed = atoi(arrayOfcstring[1]);
-    if (speed == 1)
-    {
+    if (speed == 1) {
         cmds.drillMovementDirection = 1;
     }
-    else if (speed == -1)
-    {
+    else if (speed == -1) {
         cmds.drillMovementDirection = -1;
     }
-    else
-    {
+    else {
         cmds.drillMovementDirection = 0;
     }
     //speed
@@ -164,63 +168,87 @@ void buildDataStruct()
     //mirage pos
     cmds.miragePositionCmd = atoi(arrayOfcstring[3]);
 }
-
+void doHousekeeping() {
+    if (incomingStringComplete) {
+        formatIncomingData(); //formats cmds data
+        buildDataStruct(); //formats cmds data struct
+        incomingStringComplete = false;
+    }
+    currTime = millis();
+    if (currTime - prevTime >= sendRate) //every (sendRate) ms
+    {
+        sendDataOut();
+        prevTime = millis();
+    }
+}
 
 
 void chooseMotorPosition(int pos) {
-  if (pos == 1){
-      MirageStepper.moveTo(67);
+    if (pos == 1) {
+        MirageStepper.moveTo(67);
     }
-    if (pos == 2){
-      MirageStepper.moveTo(133);
+    if (pos == 2) {
+        MirageStepper.moveTo(133);
     }
-    if (pos == 3){
+    if (pos == 3) {
         MirageStepper.moveTo(200);
     }
-    if (pos == 4){
+    if (pos == 4) {
         MirageStepper.moveTo(267);
     }
-    if (pos == 5){
+    if (pos == 5) {
         MirageStepper.moveTo(334);
     }
-    if (pos == 6){
+    if (pos == 6) {
         MirageStepper.moveTo(400);
     }
 }
 
 void activateHeater(int command) {
-  if (command == 1) {
-    //set arduino pins connected to relay high
-  }
-  else if (command == 0) {
-    //set arduino pins connected to relay low
-  }
+    if (command == 1) {
+        //set arduino pins connected to relay high
+    }
+    else if (command == 0) {
+        //set arduino pins connected to relay low
+    }
 }
 
 void activatePump(int command) {
-  if (command == 1) {
-    //set arduino pins connected to relay high
-  }
-  else if (command == 0) {
-    //set arduino pins connected to relay low
-  }
-  else if (command == -1) {
-    //reverse pump ??
-  }
+    if (command == 1) {
+        //set arduino pins connected to relay high
+    }
+    else if (command == 0) {
+        //set arduino pins connected to relay low
+    }
+    else if (command == -1) {
+        //reverse pump ??
+    }
 }
 void getMSE() {
-  // float drillTorque = getDrillTorque();
-  // float drillRPM = getDrillRPM();
-  // float ROP = cmds.speed;
-  // float MSE = WOB/augerArea + drillTorque*drillRPM/(augerArea*ROP); //MSE equation
+    // float drillTorque = getDrillTorque();
+    // float drillRPM = getDrillRPM();
+    // float ROP = cmds.speed;
+    // float MSE = WOB/augerArea + drillTorque*drillRPM/(augerArea*ROP); //MSE equation
 }
 
 void checkLimitSwitches() {
-	// check the pin
-	// if curr pin status != pin status (reduce number of writings)
-		// if the pin is high,
-		// cmds.drillLimitSwitchActive = 1;
-		// else
-		// if
-		// cmds.drillLimitSwitchActive = 1;
+    // check the pin
+    // if curr pin status != pin status (reduce number of writings)
+        // if the pin is high,
+        // drillLimitSwitchActive = 1;
+        // else
+        // if
+        // drillLimitSwitchActive = 1;
+}
+void setPIDcmd() {
+    WOBcurrTime = millis();
+    WOBelapsedTime = (float)(WOBcurrTime - WOBprevTime);
+    WOBerror = targetWOB - WOB; //proportional
+    WOBcumulativeError += WOBerror * WOBelapsedTime; //integral
+    WOBrateError = (WOBerror - WOBprevError) / WOBelapsedTime; //deriv
+    PIDspeedCmd = WOBerror * Kd + WOBcumulativeError * Ki + WOBrateError * Kd; //trial error for values
+    PIDspeedCmd = std::clamp(PIDspeedCmd, 0f, PIDstepperMaxSpeed); //clamps to PIDstepperMaxSpeed (steps/sec)
+
+    WOBprevError = WOBerror;
+    WOBprevTime = millis();
 }
