@@ -17,8 +17,8 @@ controlCommands cmds = {
     .controlMode = 1,
     .drillMovementDirection = 0,
     .speed = 0,
-    .miragePositionCmd = 0
-    .zeroCommand = 0;
+    .miragePositionCmd = 0,
+    .drillZeroCommand = 0
 };
 
 const int numCmds = 4;    //num of vars in struct above
@@ -34,7 +34,7 @@ char* arrayOfcstring[numCmds];
 char* myPointer;
 
 // float augerArea =  PI * (0.02)^2;
-float WOB = 0;
+float WOB = 109.99;
 float targetWOB = 100; //Newtons
 float WOBerror = 0; //pid
 float WOBcumulativeError = 0;
@@ -55,7 +55,10 @@ float PIDstepperMaxSpeed = 400; //steps per sec
 float zeroingStepperMaxSpeed = 800; //steps per sec
 
 int drillLimitSwitchActive = 0;
-
+float drillRPM = 0;
+float drillCurrent = 0;
+float drillPos = 0; //mm from top
+int limitSwitchReached = 1; //1 if reached
 
 
 void setup() {
@@ -79,13 +82,14 @@ void loop() {
 
     if (drillLimitSwitchActive == 1) { //limit switch reached
         DrillStepper.setCurrentPosition(0); //resets internal accellstepper position tracker, ALSO sets speed to 0
+        DrillStepper.setSpeed(0); //repetitive actually (see ^)
         if (cmds.drillMovementDirection == 1) { //moving down
             DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection); //sets drill vertical speed
         }
     }
     else {
-        if (cmds.zeroCommand == 1) { //zeroing
-            DrillStepper.setSpeed(zeroingStepperMaxSpeed * -1) // moveup
+        if (cmds.drillZeroCommand == 1) { //zeroing
+            DrillStepper.setSpeed(zeroingStepperMaxSpeed * -1); // moveup
         }
         else if (cmds.controlMode == 0) { //automatic/limit WOB/pid control mode
             setPIDcmd();
@@ -107,14 +111,22 @@ void loop() {
 */
 
 void sendDataOut() {
-    int drillStepperPos = DrillStepper.currentPosition() / stepsPerRev * leadScrewLead; //mm from limit switch, add offset to get pos of tip of drillbit
-    //WOB
-    //RPM
-    //Current
-    //
+    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, limitSwitchReached] ... update as needed
+    drillPos = DrillStepper.currentPosition() / stepsPerRev * leadScrewLead; //mm from limit switch, add offset to get pos of tip of drillbit
+    Serial.print(WOB, 2);
+    Serial.print(",");
+    Serial.print(drillRPM, 2);
+    Serial.print(",");
+    Serial.print(drillCurrent, 2);
+    Serial.print(",");
+    Serial.print(drillPos, 2);
+    Serial.print(",");
+    Serial.print(limitSwitchReached, DEC);
+    Serial.print(",");
 
-    //
-    //send data back to serial
+
+
+    //sanity check from matlab below
     Serial.print(cmds.controlMode, DEC); //formated as int
     Serial.print(",");
     Serial.print(cmds.drillMovementDirection, DEC); //formated as int
@@ -122,6 +134,7 @@ void sendDataOut() {
     Serial.print(cmds.speed, 2); //formated as float to 2 decials
     Serial.print(",");
     Serial.print(cmds.miragePositionCmd, DEC); //formated as int
+
     Serial.print("\n"); //serial terminator
 }
 void serialEvent() {
@@ -247,7 +260,7 @@ void setPIDcmd() {
     WOBcumulativeError += WOBerror * WOBelapsedTime; //integral
     WOBrateError = (WOBerror - WOBprevError) / WOBelapsedTime; //deriv
     PIDspeedCmd = WOBerror * Kd + WOBcumulativeError * Ki + WOBrateError * Kd; //trial error for values
-    PIDspeedCmd = std::clamp(PIDspeedCmd, 0f, PIDstepperMaxSpeed); //clamps to PIDstepperMaxSpeed (steps/sec)
+    PIDspeedCmd = constrain(PIDspeedCmd, 0, PIDstepperMaxSpeed); //clamps to PIDstepperMaxSpeed (steps/sec)
 
     WOBprevError = WOBerror;
     WOBprevTime = millis();

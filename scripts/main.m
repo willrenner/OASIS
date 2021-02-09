@@ -11,7 +11,7 @@ serialPort = serialport("COM3", 115200);
 configureTerminator(serialPort,"LF"); %sets newline as line ending
 flush(serialPort); %so that data doesnt get clogged/backed up
 configureCallback(serialPort,"terminator",@readSerialData)
-
+fileID = fopen("../logs/abcdef.txt", 'a'); %appends to end of file, or creates file and writes to it
 % hWaitbar = waitbar(0, 'Running...', 'Name', 'AARC','CreateCancelBtn','delete(gcbf)');
 changed = false;
 changedTimer = tic;
@@ -28,12 +28,27 @@ while(running)
             changed = false;
         end
         if (dataRecieved)
-            %write this data to file and be done with it
             disp(data);
+            %indecies =====> [WOB, drillRPM, drillCurrent, drillPos, limitSwitchReached] ... update as needed
             dataArray = strsplit(data, ',');
-            WOBValToApp = str2double(dataArray(3));
-            WOBValToApp = round(WOBValToApp,2);
-            appHandle.WOBNEditField.Value = WOBValToApp;
+            WOB = round(str2double(dataArray(1)), 2);
+            drillRPM = str2double(dataArray(2)); 
+            drillCurrent = str2double(dataArray(3)); 
+            drillPos = str2double(dataArray(4)); 
+            limitSwitchReached = str2double(dataArray(5));
+            %-----send to app-----
+            appHandle.WOBNEditField.Value = WOB;
+            if (limitSwitchReached == 1) 
+                appHandle.LimitSwitchReachedLamp.Color = [0,1,0]; %rgb
+            else
+                appHandle.LimitSwitchReachedLamp.Color = [1,1,1];
+            end
+            %--------------------
+            
+            %-----log to file----
+            %log all values
+            %fprintf(fileID,'%i-%i-%i-%i-%i-%2.3f %.2f\r\n',c, y); % Write to file
+            %--------------------
             dataRecieved = false;
         end
         pause(0.01);
@@ -44,7 +59,7 @@ while(running)
 end
 disp('Stopped... final info:');
 disp('data: ' + data);
-disp('linetowrite: ' + linetowrite);
+% disp('linetowrite: ' + linetowrite);
 configureCallback(serialPort,"off");
 % clear all;
 
@@ -66,9 +81,6 @@ function readSerialData(src,~)
     dataRecieved = true;
 end
 
-function clearVars()
-
-end
 
  
  
