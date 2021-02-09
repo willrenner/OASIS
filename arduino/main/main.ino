@@ -42,9 +42,8 @@ void setup() {
     MirageStepper.setMaxSpeed(400); // Steps per second
     MirageStepper.setSpeed(400);
     MirageStepper.setAcceleration(50); //Steps/sec^2
-
-
-Serial.begin(115200);
+    
+    Serial.begin(115200);
     while (!Serial)
     {
         ; // wait for serial port to connect. Needed for native USB port only
