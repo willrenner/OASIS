@@ -1,5 +1,5 @@
 /* AARC Sensors & Prospecting ---> Author: John Stanfield _-_-_-_-_-_-
- WOB Sensor Code -_-_-_-_-_-_-_-_-
+ WOB Sensor Code - Testing File (one module)  -_-_-_-_-_-_-_-_-
 -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-
  Notation: _______________________________________________________________________________________________________
  DR_Cell = Load cell for drill
