@@ -3,7 +3,7 @@
 -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-
  Notation: _______________________________________________________________________________________________________
  DR_Cell = Load cell for drill
- EX_Cell = Load cell for extraction system 
+ EX_Cell = Load cell for extraction system
  LoadCell = load cell module
  HX711_ADC = the adc used within our sensor system
  data = data out pin
@@ -17,7 +17,7 @@ ________________________________________________________________________________
 
 // declare pins: ------------- Must do before operation
 const int HX711_data_1 = 1;
-const int HX711_clck_1 = 2; 
+const int HX711_clck_1 = 2;
 
 
 //Match pins to adc/sensor modules
@@ -32,9 +32,9 @@ void setup() {
 
   float calval_LoadCell;
 
-// Define calibration values given by the calibration script
+  // Define calibration values given by the calibration script
   calval_LoadCell = 100;
- 
+
   LoadCell.begin();
   unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
   boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
@@ -47,18 +47,18 @@ void setup() {
   if (LoadCell.getTareTimeoutFlag()) {
     Serial.println("Timeout, check wiring and pin designations for load cell module");
   }
-   // Apply calibration value
+  // Apply calibration value
   LoadCell.setCalFactor(calval_LoadCell);
   Serial.println("Startup is complete");
-  }
+}
 
-  void loop() {
+void loop() {
   static boolean newDataReady = 0;
   const int serialPrintInterval = 0; //increase value to slow down serial print
 
   // check for new data/start next conversion:
   if (LoadCell.update()) newDataReady = true;
-  
+
   //get smoothed value from data set
   if ((newDataReady)) {
     if (millis() > t + serialPrintInterval) {
@@ -82,6 +82,6 @@ void setup() {
   if (LoadCell.getTareStatus() == true) {
     Serial.println("Tare Load Cell Complete");
   }
-  
-  }
+
+}
 // (Jay)Note: Credit for the ADC libray goes to Olav Kallhovd (GitHub)
