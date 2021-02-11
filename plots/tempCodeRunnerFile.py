@@ -1,1 +1,2 @@
-readline
+
+from collections import deque

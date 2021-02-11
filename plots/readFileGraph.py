@@ -1,58 +1,105 @@
+import pytz
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
 import os
+import pytz
+import datetime
+from collections import deque
 
 win = pg.GraphicsLayoutWidget(show=True)
 win.setWindowTitle('AARC Telem')
-# fName = './logs/readTest.txt'
-fName = './logs/abcd.txt'
+fName = './logs/abcdefg.txt'
+
+UNIX_EPOCH_naive = datetime.datetime(1970, 1, 1, 0, 0)  # offset-naive datetime
+UNIX_EPOCH_offset_aware = datetime.datetime(
+    1970, 1, 1, 0, 0, tzinfo=pytz.timezone('US/Central'))  # offset-aware datetime
+UNIX_EPOCH = UNIX_EPOCH_offset_aware
+TS_MULT_us = 1e6
+
+
+class TimeAxisItem(pg.AxisItem):
+    def __init__(self, *args, **kwargs):
+        #  super().__init__(*args, **kwargs)
+        super(TimeAxisItem, self).__init__(*args, **kwargs)
+
+    def tickStrings(self, values, scale, spacing):
+        # PySide's QTime() initialiser fails miserably and dismisses args/kwargs
+        # return [QTime().addMSecs(value).toString('mm:ss') for value in values]
+        return [int2dt(value).strftime("%H:%M:%S.%f") for value in values]
+
+
+def now_timestamp(ts_mult=TS_MULT_us, epoch=UNIX_EPOCH):
+    return(int((datetime.datetime.now(datetime.timezone.utc) - epoch).total_seconds()*ts_mult))
+
+
+def int2dt(ts, ts_mult=TS_MULT_us):
+    return(datetime.datetime.utcfromtimestamp(float(ts)/ts_mult))
+
+
+def dt2int(dt, ts_mult=TS_MULT_us, epoch=UNIX_EPOCH):
+    delta = dt - epoch
+    return(int(delta.total_seconds()*ts_mult))
+
+
+def td2int(td, ts_mult=TS_MULT_us):
+    return(int(td.total_seconds()*ts_mult))
+
+
+def int2td(ts, ts_mult=TS_MULT_us):
+    return(datetime.timedelta(seconds=float(ts)/ts_mult))
+
 
 # 1) Simplest approach -- update data in the array such that plot appears to scroll. In these examples, the array size is fixed.
 pg.setConfigOptions(antialias=True)
-p1 = win.addPlot(row=0, col=0, labels={'left': "ROP", 'bottom': "Time"})
+tai = TimeAxisItem(orientation='bottom')
+p1 = win.addPlot(row=0, col=0, labels={'left': "ROP", 'bottom': "Time"}, axisItems={
+    'bottom': TimeAxisItem(orientation='bottom')})
 p1.setMouseEnabled(y=False)
-data1x = np.zeros(300)
-data1y = np.zeros(300)
+maxlen = 100
+data_x = deque(maxlen=maxlen)
+data_y = deque(maxlen=maxlen)
 curve1 = p1.plot()
 ptr1 = 0
 
 
 def update1():
-    global data1x, ptr1
-    data1x[:-1] = data1x[1:]  # shift data in the array one sample left
-    data1y[:-1] = data1y[1:]
+    global ptr1
     gen = "".join(readLastLine())  # now a string
     x, y = gen.split(" ")
-    # data1x[-1] = float(x)
-    data1y[-1] = float(y)
     ptr1 += 1
-    curve1.setData(data1y)
+    data_y.append(float(y))
+    data_x.append(now_timestamp())
+    curve1.setData(x=list(data_x), y=list(data_y))
     curve1.setPos(ptr1, 0)
 
 
 # 2) Allow data to accumulate. In these examples, the array doubles in length whenever it is full.
-p2 = win.addPlot(row=0, col=1, labels={'left': "ROP", 'bottom': "Time"})
+p2 = win.addPlot(row=0, col=1, labels={'left': "ROP", 'bottom': "Time"}, axisItems={
+    'bottom': TimeAxisItem(orientation='bottom')})
 # Use automatic downsampling and clipping to reduce the drawing load
 p2.setDownsampling(mode='peak')
 p2.setClipToView(True)
 p2.setMouseEnabled(y=False)
 curve2 = p2.plot()
-data2 = np.empty(100)
+data_x2 = list()
+data_y2 = list()
+
 ptr2 = 0
 
 
 def update2():
-    global data2, ptr2
+    global ptr2
     gen = "".join(readLastLine())  # now a string
     x, y = gen.split(" ")
-    data2[ptr2] = float(y)
+    data_y2.append(float(y))
+    data_x2.append(now_timestamp())
     ptr2 += 1
-    if ptr2 >= data2.shape[0]:
-        tmp = data2
-        data2 = np.empty(data2.shape[0] * 2)
-        data2[:tmp.shape[0]] = tmp
-    curve2.setData(data2[:ptr2])
+    # if ptr2 >= data2.shape[0]:
+    #     tmp = data2
+    #     data2 = np.empty(data2.shape[0] * 2)
+    #     data2[:tmp.shape[0]] = tmp
+    curve2.setData(x=list(data_x2), y=list(data_y2))
 
 
 def getLineCount():
@@ -85,32 +132,30 @@ def loadAllPreviousValues():  # returns an array of all data in file
     return data99, ptr99
 
 
-p3 = win.addPlot(row=1, col=0, colspan=2, labels={
-                 'left': "ROP", 'bottom': "Time"})
-
+# p3 = win.addPlot(row=1, col=0, colspan=2, labels={
+#                  'left': "ROP", 'bottom': "Time"})
 
 # Use automatic downsampling and clipping to reduce the drawing load
-p3.setDownsampling(mode='peak')
-p3.setClipToView(True)
-p3.setMouseEnabled(y=False)
-curve3 = p3.plot()
-ptr3 = 0
+# p3.setDownsampling(mode='peak')
+# p3.setClipToView(True)
+# p3.setMouseEnabled(y=False)
+# curve3 = p3.plot()
+# ptr3 = 0
 
-data3, ptr3 = loadAllPreviousValues()
-curve3.setData(data3)
+# data3, ptr3 = loadAllPreviousValues()
+# curve3.setData(data3)
 
-
-def update3():
-    global data3, ptr3
-    gen = "".join(readLastLine())  # now a string
-    x, y = gen.split(" ")
-    data3[ptr3] = float(y)
-    ptr3 += 1
-    if ptr3 >= data3.shape[0]:
-        tmp = data3
-        data3 = np.empty(data3.shape[0] * 2)
-        data3[:tmp.shape[0]] = tmp
-    curve3.setData(data3[:ptr3])
+# def update3():
+#     global data3, ptr3
+#     gen = "".join(readLastLine())  # now a string
+#     x, y = gen.split(" ")
+#     data3[ptr3] = float(y)
+#     ptr3 += 1
+#     if ptr3 >= data3.shape[0]:
+#         tmp = data3
+#         data3 = np.empty(data3.shape[0] * 2)
+#         data3[:tmp.shape[0]] = tmp
+#     curve3.setData(data3[:ptr3])
 
 
 def readLastLine():  # actually gets second to last line b/c last line might not be finished from matlab
@@ -132,12 +177,12 @@ def readLastLine():  # actually gets second to last line b/c last line might not
 def update():
     update1()
     update2()
-    update3()
+    # update3()
 
 
 timer = pg.QtCore.QTimer()
 timer.timeout.connect(update)
-timer.start(50)  # ms
+timer.start(100)  # ms
 
 # Start Qt event loop unless running in interactive mode or using pyside.
 if __name__ == '__main__':

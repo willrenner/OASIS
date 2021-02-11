@@ -1,13 +1,9 @@
 #include "AccelStepper.h"
-// automatically includes arduino.h??
-uint8_t pin2 = 2;
-uint8_t pin3 = 3;
-AccelStepper DrillStepper(1, pin2, pin3);
-AccelStepper MirageStepper(1, 8, 9);
+#include <HX711_ADC.h> // Include ADC Libraries
 
 struct controlCommands {
     int controlMode; // 1 for manual rop control, 0 for automatic (pid)
-    int drillMovementDirection; // 1 for down
+    int drillMovementDirection; // 1 for down, 0 for stop, -1 for up
     double speed;
     int miragePositionCmd;
     int drillZeroCommand;
@@ -21,14 +17,25 @@ controlCommands cmds = {
     .drillZeroCommand = 0
 };
 
-const int numCmds = 4;    //num of vars in struct above
-const int sizeOfCmd = 40; //number of chars sent from matlab to arduino must be less than this
+
+// declare pins: ------------- Must do before operation
+const int HX711_data_1 = 1;
+const int HX711_clck_1 = 2;
+uint8_t pin2 = 3;
+uint8_t pin3 = 4;
+AccelStepper DrillStepper(1, pin2, pin3);
+AccelStepper MirageStepper(1, 8, 9);
+//Match pins to adc/sensor modules
+HX711_ADC LoadCell(HX711_data_1, HX711_clck_1); // Module 1 for drilling system
+unsigned long t = 0;
 
 unsigned long currTime = 0;
 unsigned long prevTime = 0;
 const unsigned long sendRate = 100; //ms
 bool incomingStringComplete = false; // whether the string is complete
-int currPosOfChar = 0; //
+int currPosOfChar = 0;
+const int numCmds = 4;    //num of vars in struct above
+const int sizeOfCmd = 40; //number of chars sent from matlab to arduino must be less than this
 char cstring[sizeOfCmd];
 char* arrayOfcstring[numCmds];
 char* myPointer;
@@ -41,8 +48,8 @@ float WOBcumulativeError = 0;
 float WOBrateError = 0;
 float WOBprevError = 0;
 float PIDspeedCmd = 0;
-float Kp = 0; //pid
-float Kd = 0; //pid
+float Kp = 0;
+float Kd = 0;
 float Ki = 0;
 float WOBcurrTime = 0;
 float WOBprevTime = 0;
@@ -50,7 +57,7 @@ double WOBelapsedTime = 0;
 
 int leadScrewLead = 8; // mm/rev
 int stepsPerRev = 200; // (per rev) steps/rev, 1.8deg/step
-float drillStepperMaxSpeed = 800; //steps per sec, over 1000 makes setSpeed() unreliable
+float drillStepperMaxSpeed = 800; //steps per sec, over 1000 makes setSpeed() unreliable says doc.
 float PIDstepperMaxSpeed = 400; //steps per sec
 float zeroingStepperMaxSpeed = 800; //steps per sec
 
@@ -62,23 +69,46 @@ int limitSwitchReached = 1; //1 if reached
 
 
 void setup() {
+    Serial.begin(115200);
+    // while (!Serial) {
+    //     ; // wait for serial port to connect. Needed for native USB port only
+    // }
+    // Serial.flush();
+    Serial.println("Starting in 3 seconds...");
+
+
+    float calval_LoadCell;
+    // Define calibration values given by the calibration script
+    calval_LoadCell = 100;
+    LoadCell.begin();
+    unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
+    boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
+    byte LoadCell_ready = 0;
+    //run startup, stabilization and tare, both modules simultaniously
+    // while ((LoadCell_ready) < 1) {
+    //     if (!LoadCell_ready) LoadCell_ready = LoadCell.startMultiple(stabilizingtime, _tare);
+    //     Serial.println("in loop");
+    // }
+    if (LoadCell.getTareTimeoutFlag()) {
+        Serial.println("Timeout, check wiring and pin designations for load cell module");
+    }
+    // Apply calibration value
+    LoadCell.setCalFactor(calval_LoadCell);
+    Serial.println("Startup is complete");
+
     DrillStepper.setMaxSpeed(drillStepperMaxSpeed);
     MirageStepper.setMaxSpeed(400); // Steps per second
     MirageStepper.setSpeed(400);
     MirageStepper.setAcceleration(50); //Steps/sec^2
 
-    Serial.begin(115200);
-    while (!Serial) {
-        ; // wait for serial port to connect. Needed for native USB port only
-    }
-    Serial.flush();
+
 }
 
 void loop() {
     checkLimitSwitches();
-    //update wob
-    //update current
-    //update other stuff
+    // update wob
+    // update current
+    // update other stuff
 
     if (drillLimitSwitchActive == 1) { //limit switch reached
         DrillStepper.setCurrentPosition(0); //resets internal accellstepper position tracker, ALSO sets speed to 0
@@ -124,8 +154,6 @@ void sendDataOut() {
     Serial.print(limitSwitchReached, DEC);
     Serial.print(",");
 
-
-
     //sanity check from matlab below
     Serial.print(cmds.controlMode, DEC); //formated as int
     Serial.print(",");
@@ -134,7 +162,6 @@ void sendDataOut() {
     Serial.print(cmds.speed, 2); //formated as float to 2 decials
     Serial.print(",");
     Serial.print(cmds.miragePositionCmd, DEC); //formated as int
-
     Serial.print("\n"); //serial terminator
 }
 void serialEvent() {
@@ -145,6 +172,7 @@ void serialEvent() {
             incomingStringComplete = true;
             currPosOfChar = 0;
             // Serial.print("Arduino Recieved: " + String(cstring) + "\n");
+            Serial.println("Arduino Recieved data");
             break;
         }
         cstring[currPosOfChar] = inChar;

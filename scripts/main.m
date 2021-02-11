@@ -1,4 +1,5 @@
 clc;clear all;
+format long;
 global data;
 global dataRecieved;
 data = "";
@@ -17,7 +18,7 @@ changed = false;
 changedTimer = tic;
 count = 0;
 while(running)
-    try
+%     try
         if (toc(changedTimer) > 0.25) %sets a send rate
             changed = true;
             changedTimer = tic;
@@ -28,34 +29,44 @@ while(running)
             changed = false;
         end
         if (dataRecieved)
-            disp(data);
             %indecies =====> [WOB, drillRPM, drillCurrent, drillPos, limitSwitchReached] ... update as needed
             dataArray = strsplit(data, ',');
-            WOB = round(str2double(dataArray(1)), 2);
-            drillRPM = str2double(dataArray(2)); 
-            drillCurrent = str2double(dataArray(3)); 
-            drillPos = str2double(dataArray(4)); 
-            limitSwitchReached = str2double(dataArray(5));
-            %-----send to app-----
-            appHandle.WOBNEditField.Value = WOB;
-            if (limitSwitchReached == 1) 
-                appHandle.LimitSwitchReachedLamp.Color = [0,1,0]; %rgb
+            sizeOfArr = size(dataArray);
+            if (sizeOfArr(2) > 1) %new
+                disp(data);
+                WOB = round(str2double(dataArray(1)), 2);
+                drillRPM = str2double(dataArray(2)); 
+                drillCurrent = str2double(dataArray(3)); 
+                drillPos = str2double(dataArray(4)); 
+                limitSwitchReached = str2double(dataArray(5));
+                %-----send to app-----
+                appHandle.WOBNEditField.Value = WOB;
+                if (limitSwitchReached == 1) 
+                    appHandle.LimitSwitchReachedLamp.Color = [0,1,0]; %rgb
+                else
+                    appHandle.LimitSwitchReachedLamp.Color = [1,1,1];
+                end
+                %--------------------
+
+                %-----log to file----
+                %log all values
+                t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z')
+                p = posixtime(t)
+%                 fprintf(fileID,'%i-%i-%i-%i-%i-%2.3f %.2f\r\n',c, y); % Write to file
+%                 fprintf(fileID,'%.2f %.2f\r\n',c, y); % Write to file
+                
+                %--------------------
             else
-                appHandle.LimitSwitchReachedLamp.Color = [1,1,1];
+                disp("Message from arduino: ");
+                disp(data);
             end
-            %--------------------
-            
-            %-----log to file----
-            %log all values
-            %fprintf(fileID,'%i-%i-%i-%i-%i-%2.3f %.2f\r\n',c, y); % Write to file
-            %--------------------
             dataRecieved = false;
         end
         pause(0.01);
-    catch
-        disp("ERROR!");
-        break;
-    end
+%     catch
+%         disp("ERROR!");
+%         break;
+%     end
 end
 disp('Stopped... final info:');
 disp('data: ' + data);
