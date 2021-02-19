@@ -293,3 +293,9 @@ void setPIDcmd() {
     WOBprevError = WOBerror;
     WOBprevTime = millis();
 }
+
+
+// possible control of dimmer module
+// #define ZeroCrPin   2// interrupt 0
+// volatile unsigned long zcUsec = 0;  // must be set to volatile when used within an interrupt.
+// attachInterrupt(0, [] {zcUsec = micros()}, FALLING); // used an anonomous function (lambda funciton) to set zcUsec to micros()
