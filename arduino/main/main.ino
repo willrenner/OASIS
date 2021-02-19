@@ -21,6 +21,7 @@ controlCommands cmds = {
 // declare pins: ------------- Must do before operation
 const int HX711_data_1 = 1;
 const int HX711_clck_1 = 2;
+int limitSwitchPin = 5;
 uint8_t pin2 = 3;
 uint8_t pin3 = 4;
 AccelStepper DrillStepper(1, pin2, pin3);
@@ -61,7 +62,9 @@ float drillStepperMaxSpeed = 800; //steps per sec, over 1000 makes setSpeed() un
 float PIDstepperMaxSpeed = 400; //steps per sec
 float zeroingStepperMaxSpeed = 800; //steps per sec
 
-int drillLimitSwitchActive = 0;
+int drillLimitSwitchActive = 0; //1 for active
+unsigned long currLimitSwitchTime = 0;
+unsigned long prevLimitSwitchTime = 0;
 float drillRPM = 0;
 float drillCurrent = 0;
 float drillPos = 0; //mm from top
@@ -70,13 +73,12 @@ int limitSwitchReached = 1; //1 if reached
 
 void setup() {
     Serial.begin(115200);
-    // while (!Serial) {
-    //     ; // wait for serial port to connect. Needed for native USB port only
-    // }
-    // Serial.flush();
+    while (!Serial) {
+        ; // wait for serial port to connect. Needed for native USB port only
+    }
+    Serial.flush();
     Serial.println("Starting in 3 seconds...");
-
-
+    pinMode(limitSwitchPin, INPUT); //limit switch
     float calval_LoadCell;
     // Define calibration values given by the calibration script
     calval_LoadCell = 100;
@@ -105,7 +107,11 @@ void setup() {
 }
 
 void loop() {
-    checkLimitSwitches();
+    currLimitSwitchTime = millis();
+    if (currLimitSwitchTime - prevLimitSwitchTime > 0.05 * 1000) {//20 times per sec
+        checkLimitSwitches(); //may need to set timer for this to not check every loop
+        prevLimitSwitchTime = millis();
+    }
     // update wob
     // update current
     // update other stuff
@@ -124,6 +130,9 @@ void loop() {
         else if (cmds.controlMode == 0) { //automatic/limit WOB/pid control mode
             setPIDcmd();
             DrillStepper.setSpeed(PIDspeedCmd);
+        }
+        else {
+            DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection);
         }
     }
     MirageStepper.run();
@@ -273,13 +282,12 @@ void getMSE() {
 }
 
 void checkLimitSwitches() {
-    // check the pin
-    // if curr pin status != pin status (reduce number of writings)
-        // if the pin is high,
-        // drillLimitSwitchActive = 1;
-        // else
-        // if
-        // drillLimitSwitchActive = 1;
+    if (digitalRead(limitSwitchPin) == LOW) {
+        drillLimitSwitchActive = 1;
+    }
+    else {
+        drillLimitSwitchActive = 1;
+    }
 }
 void setPIDcmd() {
     WOBcurrTime = millis();
