@@ -50,8 +50,8 @@ while(running)
 
                 %-----log to file----
                 %log all values
-                t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z')
-                p = posixtime(t)
+%                 t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z')
+%                 p = posixtime(t)
 %                 fprintf(fileID,'%i-%i-%i-%i-%i-%2.3f %.2f\r\n',c, y); % Write to file
 %                 fprintf(fileID,'%.2f %.2f\r\n',c, y); % Write to file
                 
@@ -72,11 +72,11 @@ disp('Stopped... final info:');
 disp('data: ' + data);
 % disp('linetowrite: ' + linetowrite);
 configureCallback(serialPort,"off");
-% clear all;
+clear all;
 
 
 
-function returnVal = getValuesFromApp(appHand)
+function returnVal = getValuesFromApp(appHand) %mode, dir, speed, miragePos
     %if app is closed accidently warning appears
     cmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir

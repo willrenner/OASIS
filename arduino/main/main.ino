@@ -22,9 +22,9 @@ controlCommands cmds = {
 const int HX711_data_1 = 1;
 const int HX711_clck_1 = 2;
 int limitSwitchPin = 5;
-uint8_t pin2 = 3;
-uint8_t pin3 = 4;
-AccelStepper DrillStepper(1, pin2, pin3);
+uint8_t pin3 = 3;
+uint8_t pin4 = 4;
+AccelStepper DrillStepper(1, pin3, pin4); //driver, step, dir pin
 AccelStepper MirageStepper(1, 8, 9);
 //Match pins to adc/sensor modules
 HX711_ADC LoadCell(HX711_data_1, HX711_clck_1); // Module 1 for drilling system
@@ -32,7 +32,7 @@ unsigned long t = 0;
 
 unsigned long currTime = 0;
 unsigned long prevTime = 0;
-const unsigned long sendRate = 100; //ms
+const unsigned long sendRate = 200; //ms
 bool incomingStringComplete = false; // whether the string is complete
 int currPosOfChar = 0;
 const int numCmds = 4;    //num of vars in struct above
@@ -42,7 +42,7 @@ char* arrayOfcstring[numCmds];
 char* myPointer;
 
 // float augerArea =  PI * (0.02)^2;
-float WOB = 109.99;
+float WOB = 0;
 float targetWOB = 100; //Newtons
 float WOBerror = 0; //pid
 float WOBcumulativeError = 0;
@@ -68,7 +68,7 @@ unsigned long prevLimitSwitchTime = 0;
 float drillRPM = 0;
 float drillCurrent = 0;
 float drillPos = 0; //mm from top
-int limitSwitchReached = 1; //1 if reached
+
 
 
 void setup() {
@@ -115,7 +115,7 @@ void loop() {
     // update wob
     // update current
     // update other stuff
-
+    // DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection);
     if (drillLimitSwitchActive == 1) { //limit switch reached
         DrillStepper.setCurrentPosition(0); //resets internal accellstepper position tracker, ALSO sets speed to 0
         DrillStepper.setSpeed(0); //repetitive actually (see ^)
@@ -150,7 +150,7 @@ void loop() {
 */
 
 void sendDataOut() {
-    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, limitSwitchReached] ... update as needed
+    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, drillLimitSwitchActive] ... update as needed
     drillPos = DrillStepper.currentPosition() / stepsPerRev * leadScrewLead; //mm from limit switch, add offset to get pos of tip of drillbit
     Serial.print(WOB, 2);
     Serial.print(",");
@@ -160,9 +160,9 @@ void sendDataOut() {
     Serial.print(",");
     Serial.print(drillPos, 2);
     Serial.print(",");
-    Serial.print(limitSwitchReached, DEC);
+    Serial.print(drillLimitSwitchActive, DEC);
     Serial.print(",");
-
+    //mode, dir, speed, miragePos
     //sanity check from matlab below
     Serial.print(cmds.controlMode, DEC); //formated as int
     Serial.print(",");
@@ -181,7 +181,7 @@ void serialEvent() {
             incomingStringComplete = true;
             currPosOfChar = 0;
             // Serial.print("Arduino Recieved: " + String(cstring) + "\n");
-            Serial.println("Arduino Recieved data");
+            // Serial.println("Arduino Recieved data");
             break;
         }
         cstring[currPosOfChar] = inChar;
@@ -199,15 +199,15 @@ void formatIncomingData() {
     }
     // Serial.println("here: " + String(arrayOfcstring[1]));
 }
-void buildDataStruct() {
+void buildDataStruct() { //mode, dir, speed, miragePos
     //mode
     cmds.controlMode = atoi(arrayOfcstring[0]);
     //direction
-    int speed = atoi(arrayOfcstring[1]);
-    if (speed == 1) {
+    int direction = atoi(arrayOfcstring[1]);
+    if (direction == 1) {
         cmds.drillMovementDirection = 1;
     }
-    else if (speed == -1) {
+    else if (direction == -1) {
         cmds.drillMovementDirection = -1;
     }
     else {
@@ -284,9 +284,10 @@ void getMSE() {
 void checkLimitSwitches() {
     if (digitalRead(limitSwitchPin) == LOW) {
         drillLimitSwitchActive = 1;
+        // Serial.println("Limit switch activated!");
     }
     else {
-        drillLimitSwitchActive = 1;
+        drillLimitSwitchActive = 0;
     }
 }
 void setPIDcmd() {
