@@ -32,6 +32,7 @@ unsigned long t = 0;
 
 unsigned long currTime = 0;
 unsigned long prevTime = 0;
+const unsigned long limitSwitchCheckRate = 50; //ms
 const unsigned long sendRate = 200; //ms
 bool incomingStringComplete = false; // whether the string is complete
 int currPosOfChar = 0;
@@ -108,33 +109,15 @@ void setup() {
 
 void loop() {
     currLimitSwitchTime = millis();
-    if (currLimitSwitchTime - prevLimitSwitchTime > 0.05 * 1000) {//20 times per sec
+    if (currLimitSwitchTime - prevLimitSwitchTime > limitSwitchCheckRate) {//20 times per sec
         checkLimitSwitches(); //may need to set timer for this to not check every loop
         prevLimitSwitchTime = millis();
     }
     // update wob
     // update current
     // update other stuff
-    // DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection);
-    if (drillLimitSwitchActive == 1) { //limit switch reached
-        DrillStepper.setCurrentPosition(0); //resets internal accellstepper position tracker, ALSO sets speed to 0
-        DrillStepper.setSpeed(0); //repetitive actually (see ^)
-        if (cmds.drillMovementDirection == 1) { //moving down
-            DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection); //sets drill vertical speed
-        }
-    }
-    else {
-        if (cmds.drillZeroCommand == 1) { //zeroing
-            DrillStepper.setSpeed(zeroingStepperMaxSpeed * -1); // moveup
-        }
-        else if (cmds.controlMode == 0) { //automatic/limit WOB/pid control mode
-            setPIDcmd();
-            DrillStepper.setSpeed(PIDspeedCmd);
-        }
-        else {
-            DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection);
-        }
-    }
+    setDrillSpeed();
+
     MirageStepper.run();
     DrillStepper.runSpeed();
 
@@ -301,6 +284,27 @@ void setPIDcmd() {
 
     WOBprevError = WOBerror;
     WOBprevTime = millis();
+}
+void setDrillSpeed() {
+    if (drillLimitSwitchActive == 1) { //limit switch reached
+        DrillStepper.setCurrentPosition(0); //resets internal accellstepper position tracker, ALSO sets speed to 0
+        DrillStepper.setSpeed(0); //repetitive actually (see ^)
+        if (cmds.drillMovementDirection == 1) { //moving down
+            DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection); //sets drill vertical speed
+        }
+    }
+    else {
+        if (cmds.drillZeroCommand == 1) { //zeroing
+            DrillStepper.setSpeed(zeroingStepperMaxSpeed * -1); // moveup
+        }
+        else if (cmds.controlMode == 0) { //automatic/limit WOB/pid control mode
+            setPIDcmd();
+            DrillStepper.setSpeed(PIDspeedCmd);
+        }
+        else {
+            DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection);
+        }
+    }
 }
 
 
