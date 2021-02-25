@@ -7,6 +7,7 @@ struct controlCommands {
     double speed;
     int miragePositionCmd;
     int drillZeroCommand;
+    int Drill_RPM;
 };
 
 controlCommands cmds = {
@@ -14,7 +15,8 @@ controlCommands cmds = {
     .drillMovementDirection = 0,
     .speed = 0,
     .miragePositionCmd = 0,
-    .drillZeroCommand = 0
+    .drillZeroCommand = 0,
+    .Drill_RPM = 0
 };
 
 
@@ -22,6 +24,8 @@ controlCommands cmds = {
 const int HX711_data_1 = 1;
 const int HX711_clck_1 = 2;
 int limitSwitchPin = 5;
+int AC_pin = 7; //PWM pin for dimmer
+byte dim = 0; //Sets initial brightness to 0 out of 255
 uint8_t pin3 = 3;
 uint8_t pin4 = 4;
 AccelStepper DrillStepper(1, pin3, pin4); //driver, step, dir pin
@@ -80,6 +84,8 @@ void setup() {
     Serial.flush();
     Serial.println("Starting in 3 seconds...");
     pinMode(limitSwitchPin, INPUT); //limit switch
+    pinMode(AC_pin, OUTPUT);
+    attachInterrupt(0, Drill_RPM, FALLING); //actuator when pin is falling high to low to form square wave
     float calval_LoadCell;
     // Define calibration values given by the calibration script
     calval_LoadCell = 100;
@@ -137,7 +143,7 @@ void sendDataOut() {
     drillPos = DrillStepper.currentPosition() / stepsPerRev * leadScrewLead; //mm from limit switch, add offset to get pos of tip of drillbit
     Serial.print(WOB, 2);
     Serial.print(",");
-    Serial.print(drillRPM, 2);
+    Serial.print(cmds.Drill_RPM, DEC );
     Serial.print(",");
     Serial.print(drillCurrent, 2);
     Serial.print(",");
@@ -309,6 +315,27 @@ void setDrillSpeed() {
 
 
 // possible control of dimmer module
+void Drill_RPM() {
+  if (Serial.available()) {
+    dim = Serial.read();
+    if (dim < 1) {
+      //Turn TRIAC completely OFF if dim is 0
+      digitalWrite(AC_pin, LOW);
+    }
+
+    if (dim > 254) { //Turn TRIAC completely ON if dim is 255
+      digitalWrite(AC_pin, HIGH);
+    }
+  }
+
+  if (dim > 0 && dim < 255) {
+    //Dimming part, if dim is not 0 and not 255
+    delayMicroseconds(34*(255-dim));
+    digitalWrite(AC_pin, HIGH);
+    delayMicroseconds(500);
+    digitalWrite(AC_pin, LOW);
+  }
+}
 // #define ZeroCrPin   2// interrupt 0
 // volatile unsigned long zcUsec = 0;  // must be set to volatile when used within an interrupt.
 // attachInterrupt(0, [] {zcUsec = micros()}, FALLING); // used an anonomous function (lambda funciton) to set zcUsec to micros()

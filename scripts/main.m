@@ -82,6 +82,7 @@ function returnVal = getValuesFromApp(appHand) %mode, dir, speed, miragePos
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
     miragePosition = appHand.Mirage_Position_Cmd; %mirage position
+    DrillRPM = appHand.RPMSpeed_Cmd;
     returnVal = cmdMode +  "," + dir + "," + speed + "," + miragePosition;
 end
 
