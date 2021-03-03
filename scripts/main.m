@@ -17,6 +17,7 @@ fileID = fopen("../logs/abcdef.txt", 'a'); %appends to end of file, or creates f
 changed = false;
 changedTimer = tic;
 count = 0;
+
 while(running)
 %     try
         if (toc(changedTimer) > 0.25) %sets a send rate
@@ -29,36 +30,19 @@ while(running)
             changed = false;
         end
         if (dataRecieved)
-            %indecies =====> [WOB, drillRPM, drillCurrent, drillPos, miragePos, limitSwitchReached] ... update as needed
+            %indecies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive] ... update as needed
             dataArray = strsplit(data, ',');
             sizeOfArr = size(dataArray);
-            if (sizeOfArr(2) > 1) %new
+            if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
                 disp(data);
-                WOB = round(str2double(dataArray(1)), 2);
-                drillRPM = str2double(dataArray(2)); 
-                drillCurrent = str2double(dataArray(3)); 
-                drillPos = str2double(dataArray(4));
-                miragePos = str2double(dataArray(5));
-                limitSwitchReached = str2double(dataArray(6));
-                %-----send to app-----
-                appHandle.WOBNEditField.Value = WOB;
-                appHandle.DrillPosmmEditField.Value = drillPos;
-                if (limitSwitchReached == 1) 
-                    appHandle.LimitSwitchReachedLamp.Color = [0,1,0]; %rgb
-                else
-                    appHandle.LimitSwitchReachedLamp.Color = [1,1,1];
-                end
-                %--------------------
-
+                setAppData(appHandle, dataArray);
                 %-----log to file----
                 %log all values
 %                 t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z')
 %                 p = posixtime(t)
 %                 fprintf(fileID,'%i-%i-%i-%i-%i-%2.3f %.2f\r\n',c, y); % Write to file
-%                 fprintf(fileID,'%.2f %.2f\r\n',c, y); % Write to file
-                
-                %--------------------
-            else
+%                 fprintf(fileID,'%.2f %.2f\r\n',c, y); % Write to file  
+            else %meaning Serial debug statment, and not data array
                 disp("Message from arduino: ");
                 disp(data);
             end
@@ -72,7 +56,6 @@ while(running)
 end
 disp('Stopped... final info:');
 disp('data: ' + data);
-% disp('linetowrite: ' + linetowrite);
 configureCallback(serialPort,"off");
 clear all;
 
@@ -94,6 +77,26 @@ function readSerialData(src,~)
     global dataRecieved;
     data = readline(src);
     dataRecieved = true;
+end
+
+function setAppData(appHandle, dataArray)
+    WOB = round(str2double(dataArray(1)), 2);
+    % drillRPM = round(str2double(dataArray(2)), 2);
+    drillCurrent = round(str2double(dataArray(3)), 2); 
+    drillPos = round(str2double(dataArray(4)), 2);
+    mirageAngle = round(str2double(dataArray(5)), 2);
+    limitSwitchReached = str2double(dataArray(6));
+
+    %-----send to app-----
+    appHandle.WOBNEditField.Value = WOB;
+    appHandle.DrillPosmmEditField.Value = drillPos;
+    appHandle.MiragePosdegEditField.Value = mirageAngle;
+    appHandle.DrillCurrentAEditField.Value = drillCurrent;
+    if (limitSwitchReached == 1) 
+        appHandle.LimitSwitchReachedLamp.Color = [0,1,0]; %rgb
+    else
+        appHandle.LimitSwitchReachedLamp.Color = [1,1,1];
+    end
 end
 
 

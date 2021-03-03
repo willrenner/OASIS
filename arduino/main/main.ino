@@ -2,7 +2,7 @@
 #include <HX711_ADC.h> // Include ADC Libraries
 
 struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump]
-    int controlMode; // 1 for manual rop control, 0 for automatic (pid)
+    int drillControlMode; // 1 for manual rop control, 0 for automatic (pid)
     int drillMovementDirection; // 1 for down, 0 for stop, -1 for up
     double speed;
     int miragePositionCmd;
@@ -13,7 +13,7 @@ struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
 };
 
 controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump]
-    .controlMode = 1,
+    .drillControlMode = 1,
     .drillMovementDirection = 0,
     .speed = 0,
     .miragePositionCmd = 0,
@@ -23,24 +23,28 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
     .pumpCmd = 0
 };
 
+#define limitSwitchPin 5
+#define AC_pin 999 //PWM pin for dimmer
+#define drillStepPin 3
+#define drillDirPin 4
+#define mirageStepPin 6
+#define mirageDirPin 7
+#define HX711_data_1 999
+#define HX711_clck_1 999
+#define heaterRelayPin 999
+#define pumpRelayPin 999
 
-// declare pins: ------------- Must do before operation
-const int HX711_data_1 = 1;
-const int HX711_clck_1 = 2;
-int limitSwitchPin = 5;
-int AC_pin = 7; //PWM pin for dimmer
+
 byte dim = 0; //Sets initial brightness to 0 out of 255
-uint8_t pin3 = 3;
-uint8_t pin4 = 4;
-AccelStepper DrillStepper(1, pin3, pin4); //driver, step, dir pin
-AccelStepper MirageStepper(1, 8, 9);
+AccelStepper DrillStepper(1, drillStepPin, drillDirPin); //driver, step, dir pin
+AccelStepper MirageStepper(1, mirageStepPin, mirageDirPin);
 //Match pins to adc/sensor modules
 HX711_ADC LoadCell(HX711_data_1, HX711_clck_1); // Module 1 for drilling system
 unsigned long t = 0;
 
 unsigned long currTime = 0;
 unsigned long prevTime = 0;
-const unsigned long limitSwitchCheckRate = 50; //ms
+const unsigned long checkRate = 50; //ms
 const unsigned long sendRate = 200; //ms
 bool incomingStringComplete = false; // whether the string is complete
 int currPosOfChar = 0;
@@ -72,8 +76,8 @@ float PIDstepperMaxSpeed = 400; //steps per sec
 float zeroingStepperMaxSpeed = 800; //steps per sec
 
 int drillLimitSwitchActive = 0; //1 for active
-unsigned long currLimitSwitchTime = 0;
-unsigned long prevLimitSwitchTime = 0;
+unsigned long checkTime = 0;
+unsigned long prevCheckTime = 0;
 float drillRPM = 0;
 float drillCurrent = 0;
 float drillPos = 0; //mm from top
@@ -81,13 +85,15 @@ float mirageAngle = 0; //degrees from start
 
 
 void setup() {
+    pinMode(limitSwitchPin, INPUT);
+    pinMode(heaterRelayPin, OUTPUT);
+    pinMode(pumpRelayPin, OUTPUT);
+
     Serial.begin(115200);
     while (!Serial) {
         ; // wait for serial port to connect. Needed for native USB port only
     }
     Serial.flush();
-    Serial.println("Starting in 3 seconds...");
-    pinMode(limitSwitchPin, INPUT); //limit switch
 
     // pinMode(AC_pin, OUTPUT);
     // attachInterrupt(0, Drill_RPM, FALLING); //actuator when pin is falling high to low to form square wave
@@ -120,20 +126,19 @@ void setup() {
 }
 
 void loop() {
-    currLimitSwitchTime = millis();
-    if (currLimitSwitchTime - prevLimitSwitchTime > limitSwitchCheckRate) {//20 times per sec
+    checkTime = millis();
+    if (checkTime - prevCheckTime > checkRate) {//20 times per sec
         checkLimitSwitches(); //may need to set timer for this to not check every loop
-        prevLimitSwitchTime = millis();
+        checkRelayCmds();
+        prevCheckTime = millis();
     }
-    // update wob
-    // update current
-    // update other stuff
+
     setDrillSpeed();
+    setMiragePosition();
 
     MirageStepper.run();
     DrillStepper.runSpeed();
 
-    chooseMotorPosition(cmds.miragePositionCmd); //move mirage stepper to set pos
 
     doHousekeeping();
 }
@@ -145,7 +150,7 @@ void loop() {
 */
 
 void sendDataOut() {
-    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, miragePos, drillLimitSwitchActive] ... update as needed
+    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive] ... update as needed
     drillPos = DrillStepper.currentPosition() / stepsPerRev * leadScrewLead; //mm from limit switch, add offset to get pos of tip of drillbit
     mirageAngle = MirageStepper.currentPosition();
     Serial.print(WOB, 2);
@@ -162,7 +167,7 @@ void sendDataOut() {
     Serial.print(",");
     //mode, dir, speed, miragePos
     //sanity check from matlab below
-    Serial.print(cmds.controlMode, DEC); //formated as int
+    Serial.print(cmds.drillControlMode, DEC); //formated as int
     Serial.print(",");
     Serial.print(cmds.drillMovementDirection, DEC); //formated as int
     Serial.print(",");
@@ -199,22 +204,20 @@ void formatIncomingData() {
 }
 void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump]
     //mode
-    cmds.controlMode = atoi(arrayOfcstring[0]);
+    cmds.drillControlMode = atoi(arrayOfcstring[0]);
     //direction
-    int direction = atoi(arrayOfcstring[1]);
-    if (direction == 1) {
-        cmds.drillMovementDirection = 1;
-    }
-    else if (direction == -1) {
-        cmds.drillMovementDirection = -1;
-    }
-    else {
-        cmds.drillMovementDirection = 0;
-    }
+    cmds.drillMovementDirection = atoi(arrayOfcstring[1]);
     //speed
     cmds.speed = atof(arrayOfcstring[2]);
     //mirage pos
     cmds.miragePositionCmd = atoi(arrayOfcstring[3]);
+    //rpm
+    cmds.Drill_RPM = atof(arrayOfcstring[4]);
+    //heater
+    cmds.heaterCmd = atoi(arrayOfcstring[5]);
+    //pump
+    cmds.pumpCmd = atoi(arrayOfcstring[6]);
+
 }
 void doHousekeeping() {
     if (incomingStringComplete) {
@@ -231,27 +234,17 @@ void doHousekeeping() {
 }
 
 
-void chooseMotorPosition(int pos) {
-    if (pos == 1) {
-        MirageStepper.moveTo(67);
-    }
-    if (pos == 2) {
-        MirageStepper.moveTo(133);
-    }
-    if (pos == 3) {
-        MirageStepper.moveTo(200);
-    }
-    if (pos == 4) {
-        MirageStepper.moveTo(267);
-    }
-    if (pos == 5) {
-        MirageStepper.moveTo(334);
-    }
-    if (pos == 6) {
-        MirageStepper.moveTo(400);
-    }
+void setMiragePosition() {
+    MirageStepper.moveTo(cmds.miragePositionCmd);
 }
 
+void checkRelayCmds() {
+    if (cmds.pumpCmd == 1) digitalWrite(pumpRelayPin, HIGH);
+    else digitalWrite(pumpRelayPin, LOW);
+
+    if (cmds.heaterCmd == 1) digitalWrite(heaterRelayPin, HIGH);
+    else digitalWrite(heaterRelayPin, LOW);
+}
 // void activateHeater(int command) {
 //     if (command == 1) {
 //         //set arduino pins connected to relay high
@@ -296,7 +289,6 @@ void checkLimitSwitches() {
 //     WOBrateError = (WOBerror - WOBprevError) / WOBelapsedTime; //deriv
 //     PIDspeedCmd = WOBerror * Kd + WOBcumulativeError * Ki + WOBrateError * Kd; //trial error for values
 //     PIDspeedCmd = constrain(PIDspeedCmd, 0, PIDstepperMaxSpeed); //clamps to PIDstepperMaxSpeed (steps/sec)
-
 //     WOBprevError = WOBerror;
 //     WOBprevTime = millis();
 // }
@@ -312,7 +304,7 @@ void setDrillSpeed() {
         if (cmds.drillZeroCommand == 1) { //zeroing
             DrillStepper.setSpeed(zeroingStepperMaxSpeed * -1); // moveup
         }
-        else if (cmds.controlMode == 0) { //automatic/limit WOB/pid control mode
+        else if (cmds.drillControlMode == 0) { //automatic/limit WOB/pid control mode
             // setPIDcmd();
             DrillStepper.setSpeed(PIDspeedCmd);
         }
