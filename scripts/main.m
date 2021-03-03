@@ -29,7 +29,7 @@ while(running)
             changed = false;
         end
         if (dataRecieved)
-            %indecies =====> [WOB, drillRPM, drillCurrent, drillPos, limitSwitchReached] ... update as needed
+            %indecies =====> [WOB, drillRPM, drillCurrent, drillPos, miragePos, limitSwitchReached] ... update as needed
             dataArray = strsplit(data, ',');
             sizeOfArr = size(dataArray);
             if (sizeOfArr(2) > 1) %new
@@ -37,10 +37,12 @@ while(running)
                 WOB = round(str2double(dataArray(1)), 2);
                 drillRPM = str2double(dataArray(2)); 
                 drillCurrent = str2double(dataArray(3)); 
-                drillPos = str2double(dataArray(4)); 
-                limitSwitchReached = str2double(dataArray(5));
+                drillPos = str2double(dataArray(4));
+                miragePos = str2double(dataArray(5));
+                limitSwitchReached = str2double(dataArray(6));
                 %-----send to app-----
                 appHandle.WOBNEditField.Value = WOB;
+                appHandle.DrillPosmmEditField.Value = drillPos;
                 if (limitSwitchReached == 1) 
                     appHandle.LimitSwitchReachedLamp.Color = [0,1,0]; %rgb
                 else
@@ -76,14 +78,15 @@ clear all;
 
 
 
-function returnVal = getValuesFromApp(appHand) %mode, dir, speed, miragePos
-    %if app is closed accidently warning appears
-    cmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
+function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump]
+    drillCmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
-    miragePosition = appHand.Mirage_Position_Cmd; %mirage position
-    DrillRPM = appHand.RPMSpeed_Cmd;
-    returnVal = cmdMode +  "," + dir + "," + speed + "," + miragePosition;
+    miragePosition = appHand.Mirage_Position_Cmd * appHand.Mirage_Direction_Cmd; %mirage position
+    rpm = appHand.RPMSpeed_Cmd;
+    heater = appHand.Heater_Cmd;
+    pump = appHand.Pump_Cmd;
+    returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," + rpm + "," + heater + "," + pump;
 end
 
 function readSerialData(src,~)

@@ -1,22 +1,26 @@
 #include "AccelStepper.h"
 #include <HX711_ADC.h> // Include ADC Libraries
 
-struct controlCommands {
+struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump]
     int controlMode; // 1 for manual rop control, 0 for automatic (pid)
     int drillMovementDirection; // 1 for down, 0 for stop, -1 for up
     double speed;
     int miragePositionCmd;
     int drillZeroCommand;
     int Drill_RPM;
+    int heaterCmd;
+    int pumpCmd;
 };
 
-controlCommands cmds = {
+controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump]
     .controlMode = 1,
     .drillMovementDirection = 0,
     .speed = 0,
     .miragePositionCmd = 0,
-    .drillZeroCommand = 0,
-    .Drill_RPM = 0
+    .drillZeroCommand = 0, //tbd
+    .Drill_RPM = 0,
+    .heaterCmd = 0,
+    .pumpCmd = 0
 };
 
 
@@ -73,7 +77,7 @@ unsigned long prevLimitSwitchTime = 0;
 float drillRPM = 0;
 float drillCurrent = 0;
 float drillPos = 0; //mm from top
-
+float mirageAngle = 0; //degrees from start
 
 
 void setup() {
@@ -84,8 +88,10 @@ void setup() {
     Serial.flush();
     Serial.println("Starting in 3 seconds...");
     pinMode(limitSwitchPin, INPUT); //limit switch
-    pinMode(AC_pin, OUTPUT);
-    attachInterrupt(0, Drill_RPM, FALLING); //actuator when pin is falling high to low to form square wave
+
+    // pinMode(AC_pin, OUTPUT);
+    // attachInterrupt(0, Drill_RPM, FALLING); //actuator when pin is falling high to low to form square wave
+
     float calval_LoadCell;
     // Define calibration values given by the calibration script
     calval_LoadCell = 100;
@@ -107,7 +113,7 @@ void setup() {
 
     DrillStepper.setMaxSpeed(drillStepperMaxSpeed);
     MirageStepper.setMaxSpeed(400); // Steps per second
-    MirageStepper.setSpeed(400);
+    // MirageStepper.setSpeed(400);
     MirageStepper.setAcceleration(50); //Steps/sec^2
 
 
@@ -139,15 +145,18 @@ void loop() {
 */
 
 void sendDataOut() {
-    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, drillLimitSwitchActive] ... update as needed
+    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, miragePos, drillLimitSwitchActive] ... update as needed
     drillPos = DrillStepper.currentPosition() / stepsPerRev * leadScrewLead; //mm from limit switch, add offset to get pos of tip of drillbit
+    mirageAngle = MirageStepper.currentPosition();
     Serial.print(WOB, 2);
     Serial.print(",");
-    Serial.print(cmds.Drill_RPM, DEC );
+    Serial.print(cmds.Drill_RPM, DEC);
     Serial.print(",");
     Serial.print(drillCurrent, 2);
     Serial.print(",");
     Serial.print(drillPos, 2);
+    Serial.print(",");
+    Serial.print(mirageAngle, 2);
     Serial.print(",");
     Serial.print(drillLimitSwitchActive, DEC);
     Serial.print(",");
@@ -188,7 +197,7 @@ void formatIncomingData() {
     }
     // Serial.println("here: " + String(arrayOfcstring[1]));
 }
-void buildDataStruct() { //mode, dir, speed, miragePos
+void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump]
     //mode
     cmds.controlMode = atoi(arrayOfcstring[0]);
     //direction
@@ -243,26 +252,26 @@ void chooseMotorPosition(int pos) {
     }
 }
 
-void activateHeater(int command) {
-    if (command == 1) {
-        //set arduino pins connected to relay high
-    }
-    else if (command == 0) {
-        //set arduino pins connected to relay low
-    }
-}
+// void activateHeater(int command) {
+//     if (command == 1) {
+//         //set arduino pins connected to relay high
+//     }
+//     else if (command == 0) {
+//         //set arduino pins connected to relay low
+//     }
+// }
 
-void activatePump(int command) {
-    if (command == 1) {
-        //set arduino pins connected to relay high
-    }
-    else if (command == 0) {
-        //set arduino pins connected to relay low
-    }
-    else if (command == -1) {
-        //reverse pump ??
-    }
-}
+// void activatePump(int command) {
+//     if (command == 1) {
+//         //set arduino pins connected to relay high
+//     }
+//     else if (command == 0) {
+//         //set arduino pins connected to relay low
+//     }
+//     else if (command == -1) {
+//         //reverse pump ??
+//     }
+// }
 void getMSE() {
     // float drillTorque = getDrillTorque();
     // float drillRPM = getDrillRPM();
@@ -279,18 +288,18 @@ void checkLimitSwitches() {
         drillLimitSwitchActive = 0;
     }
 }
-void setPIDcmd() {
-    WOBcurrTime = millis();
-    WOBelapsedTime = (float)(WOBcurrTime - WOBprevTime);
-    WOBerror = targetWOB - WOB; //proportional
-    WOBcumulativeError += WOBerror * WOBelapsedTime; //integral
-    WOBrateError = (WOBerror - WOBprevError) / WOBelapsedTime; //deriv
-    PIDspeedCmd = WOBerror * Kd + WOBcumulativeError * Ki + WOBrateError * Kd; //trial error for values
-    PIDspeedCmd = constrain(PIDspeedCmd, 0, PIDstepperMaxSpeed); //clamps to PIDstepperMaxSpeed (steps/sec)
+// void setPIDcmd() {
+//     WOBcurrTime = millis();
+//     WOBelapsedTime = (float)(WOBcurrTime - WOBprevTime);
+//     WOBerror = targetWOB - WOB; //proportional
+//     WOBcumulativeError += WOBerror * WOBelapsedTime; //integral
+//     WOBrateError = (WOBerror - WOBprevError) / WOBelapsedTime; //deriv
+//     PIDspeedCmd = WOBerror * Kd + WOBcumulativeError * Ki + WOBrateError * Kd; //trial error for values
+//     PIDspeedCmd = constrain(PIDspeedCmd, 0, PIDstepperMaxSpeed); //clamps to PIDstepperMaxSpeed (steps/sec)
 
-    WOBprevError = WOBerror;
-    WOBprevTime = millis();
-}
+//     WOBprevError = WOBerror;
+//     WOBprevTime = millis();
+// }
 void setDrillSpeed() {
     if (drillLimitSwitchActive == 1) { //limit switch reached
         DrillStepper.setCurrentPosition(0); //resets internal accellstepper position tracker, ALSO sets speed to 0
@@ -304,7 +313,7 @@ void setDrillSpeed() {
             DrillStepper.setSpeed(zeroingStepperMaxSpeed * -1); // moveup
         }
         else if (cmds.controlMode == 0) { //automatic/limit WOB/pid control mode
-            setPIDcmd();
+            // setPIDcmd();
             DrillStepper.setSpeed(PIDspeedCmd);
         }
         else {
@@ -315,27 +324,30 @@ void setDrillSpeed() {
 
 
 // possible control of dimmer module
-void Drill_RPM() {
-  if (Serial.available()) {
-    dim = Serial.read();
-    if (dim < 1) {
-      //Turn TRIAC completely OFF if dim is 0
-      digitalWrite(AC_pin, LOW);
-    }
+// void Drill_RPM() {
+//     if (Serial.available()) {
+//         dim = Serial.read();
+//         if (dim < 1) {
+//             //Turn TRIAC completely OFF if dim is 0
+//             digitalWrite(AC_pin, LOW);
+//         }
 
-    if (dim > 254) { //Turn TRIAC completely ON if dim is 255
-      digitalWrite(AC_pin, HIGH);
-    }
-  }
+//         if (dim > 254) { //Turn TRIAC completely ON if dim is 255
+//             digitalWrite(AC_pin, HIGH);
+//         }
+//     }
 
-  if (dim > 0 && dim < 255) {
-    //Dimming part, if dim is not 0 and not 255
-    delayMicroseconds(34*(255-dim));
-    digitalWrite(AC_pin, HIGH);
-    delayMicroseconds(500);
-    digitalWrite(AC_pin, LOW);
-  }
-}
+//     if (dim > 0 && dim < 255) {
+//         //Dimming part, if dim is not 0 and not 255
+//         delayMicroseconds(34 * (255 - dim));
+//         digitalWrite(AC_pin, HIGH);
+//         delayMicroseconds(500);
+//         digitalWrite(AC_pin, LOW);
+//     }
+// }
+
+
 // #define ZeroCrPin   2// interrupt 0
 // volatile unsigned long zcUsec = 0;  // must be set to volatile when used within an interrupt.
 // attachInterrupt(0, [] {zcUsec = micros()}, FALLING); // used an anonomous function (lambda funciton) to set zcUsec to micros()
+
