@@ -9,7 +9,7 @@ from collections import deque
 
 win = pg.GraphicsLayoutWidget(show=True)
 win.setWindowTitle('AARC Telem')
-fName = './logs/abcdefg.txt'
+fName = './logs/posix3.txt'
 
 UNIX_EPOCH_naive = datetime.datetime(1970, 1, 1, 0, 0)  # offset-naive datetime
 UNIX_EPOCH_offset_aware = datetime.datetime(
@@ -20,34 +20,26 @@ TS_MULT_us = 1e6
 
 class TimeAxisItem(pg.AxisItem):
     def __init__(self, *args, **kwargs):
-        #  super().__init__(*args, **kwargs)
         super(TimeAxisItem, self).__init__(*args, **kwargs)
 
     def tickStrings(self, values, scale, spacing):
-        # PySide's QTime() initialiser fails miserably and dismisses args/kwargs
-        # return [QTime().addMSecs(value).toString('mm:ss') for value in values]
         return [int2dt(value).strftime("%H:%M:%S.%f") for value in values]
 
+# def now_timestamp(ts_mult=TS_MULT_us, epoch=UNIX_EPOCH):
+#     return(int((datetime.datetime.now(datetime.timezone.utc) - epoch).total_seconds()*ts_mult))
 
-def now_timestamp(ts_mult=TS_MULT_us, epoch=UNIX_EPOCH):
-    return(int((datetime.datetime.now(datetime.timezone.utc) - epoch).total_seconds()*ts_mult))
+def int2dt(ts, ts_mult=TS_MULT_us): #makes string from a value for the tick mark
+    return(datetime.datetime.utcfromtimestamp(float(ts)/ts_mult)) #ts is posix time in seconds times 1e6
 
+# def dt2int(dt, ts_mult=TS_MULT_us, epoch=UNIX_EPOCH):
+#     delta = dt - epoch
+#     return(int(delta.total_seconds()*ts_mult))
 
-def int2dt(ts, ts_mult=TS_MULT_us):
-    return(datetime.datetime.utcfromtimestamp(float(ts)/ts_mult))
+# def td2int(td, ts_mult=TS_MULT_us):
+#     return(int(td.total_seconds()*ts_mult))
 
-
-def dt2int(dt, ts_mult=TS_MULT_us, epoch=UNIX_EPOCH):
-    delta = dt - epoch
-    return(int(delta.total_seconds()*ts_mult))
-
-
-def td2int(td, ts_mult=TS_MULT_us):
-    return(int(td.total_seconds()*ts_mult))
-
-
-def int2td(ts, ts_mult=TS_MULT_us):
-    return(datetime.timedelta(seconds=float(ts)/ts_mult))
+# def int2td(ts, ts_mult=TS_MULT_us):
+#     return(datetime.timedelta(seconds=float(ts)/ts_mult))
 
 
 # 1) Simplest approach -- update data in the array such that plot appears to scroll. In these examples, the array size is fixed.
@@ -69,7 +61,12 @@ def update1():
     x, y = gen.split(" ")
     ptr1 += 1
     data_y.append(float(y))
-    data_x.append(now_timestamp())
+    # data_x.append(now_timestamp())
+    idk1 = float(x)
+    idk2 = float(x) * TS_MULT_us
+    idk3 = int(idk2)
+    data_x.append(idk3)
+
     curve1.setData(x=list(data_x), y=list(data_y))
     curve1.setPos(ptr1, 0)
 
@@ -93,7 +90,8 @@ def update2():
     gen = "".join(readLastLine())  # now a string
     x, y = gen.split(" ")
     data_y2.append(float(y))
-    data_x2.append(now_timestamp())
+    # data_x2.append(now_timestamp())
+    data_x2.append(int(float(x) * TS_MULT_us))
     ptr2 += 1
     # if ptr2 >= data2.shape[0]:
     #     tmp = data2

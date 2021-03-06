@@ -1,7 +1,7 @@
 #include "AccelStepper.h"
 #include <HX711_ADC.h> // Include ADC Libraries
 
-struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump]
+struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
     int drillControlMode; // 1 for manual rop control, 0 for automatic (pid)
     int drillMovementDirection; // 1 for down, 0 for stop, -1 for up
     double speed;
@@ -10,9 +10,10 @@ struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
     int Drill_RPM;
     int heaterCmd;
     int pumpCmd;
+    int tareCmd;
 };
 
-controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump]
+controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
     .drillControlMode = 1,
     .drillMovementDirection = 0,
     .speed = 0,
@@ -20,74 +21,84 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
     .drillZeroCommand = 0, //tbd
     .Drill_RPM = 0,
     .heaterCmd = 0,
-    .pumpCmd = 0
+    .pumpCmd = 0,
+    .tareCmd = 0
 };
 
+#define numCmds 8 //num of vars in struct above
+#define sizeOfCmd 100 //number of chars sent from matlab to arduino must be less than this
 #define limitSwitchPin 5
-#define AC_pin 999 //PWM pin for dimmer
+#define AC_pin 999 //PWM pin for dimmer 
 #define drillStepPin 3
 #define drillDirPin 4
 #define mirageStepPin 6
 #define mirageDirPin 7
-#define HX711_data_1 999
-#define HX711_clck_1 999
+#define HX711_data_1 999 //digital pin (Jay used 1 and 2)
+#define HX711_clck_1 999 //digital pin
 #define heaterRelayPin 999
 #define pumpRelayPin 999
+#define sensor_interupt_pin 18 // interupt pin (On arduino Mega pins 2, 3, 18, 19, 20,& 21 can be used for interupts)
+#define stepsPerRev 200 // (per rev) steps/rev, 1.8deg/step
+#define leadScrewLead 8 // mm/rev
+#define drillStepperMaxSpeed 800 //steps per sec, over 1000 makes setSpeed() unreliable says doc.
+#define PIDstepperMaxSpeed 400 //steps per sec
+#define zeroingStepperMaxSpeed 800 //steps per sec
 
-
-byte dim = 0; //Sets initial brightness to 0 out of 255
+unsigned long rotations         = 0;  
+int      min_RPM_rotations      = 5;
+unsigned long start_time        = 0;  // allocating start time value for t=0
+byte     dim                    = 0;  //Sets initial brightness to 0 out of 255
+float    mirageStepperGearRatio = 0;
+float drillStepperRatio = leadScrewLead / stepsPerRev; //multiply by currentStep to get mm from limit switch, add offset to get pos of tip of drillbit
 AccelStepper DrillStepper(1, drillStepPin, drillDirPin); //driver, step, dir pin
 AccelStepper MirageStepper(1, mirageStepPin, mirageDirPin);
-//Match pins to adc/sensor modules
 HX711_ADC LoadCell(HX711_data_1, HX711_clck_1); // Module 1 for drilling system
-unsigned long t = 0;
 
-unsigned long currTime = 0;
-unsigned long prevTime = 0;
-const unsigned long checkRate = 50; //ms
-const unsigned long sendRate = 200; //ms
-bool incomingStringComplete = false; // whether the string is complete
-int currPosOfChar = 0;
-const int numCmds = 4;    //num of vars in struct above
-const int sizeOfCmd = 40; //number of chars sent from matlab to arduino must be less than this
+
+
+unsigned long currTime           = 0;
+unsigned long prevTime           = 0;
+// const    unsigned long checkRate = 20;     //ms
+const    unsigned long sendRate  = 200;    //ms
+bool     incomingStringComplete  = false;  // whether the string is complete
+int      currPosOfChar           = 0;
+
 char cstring[sizeOfCmd];
 char* arrayOfcstring[numCmds];
 char* myPointer;
 
 // float augerArea =  PI * (0.02)^2;
-float WOB = 0;
-float targetWOB = 100; //Newtons
-float WOBerror = 0; //pid
-float WOBcumulativeError = 0;
-float WOBrateError = 0;
-float WOBprevError = 0;
-float PIDspeedCmd = 0;
-float Kp = 0;
-float Kd = 0;
-float Ki = 0;
-float WOBcurrTime = 0;
-float WOBprevTime = 0;
-double WOBelapsedTime = 0;
+float  WOB                = 0;
+float  targetWOB          = 100;  //Newtons
+float  WOBerror           = 0;    //pid
+float  WOBcumulativeError = 0;
+float  WOBrateError       = 0;
+float  WOBprevError       = 0;
+float  PIDspeedCmd        = 0;
+float  Kp                 = 0;
+float  Kd                 = 0;
+float  Ki                 = 0;
+float  WOBcurrTime        = 0;
+float  WOBprevTime        = 0;
+double WOBelapsedTime     = 0;
 
-int leadScrewLead = 8; // mm/rev
-int stepsPerRev = 200; // (per rev) steps/rev, 1.8deg/step
-float drillStepperMaxSpeed = 800; //steps per sec, over 1000 makes setSpeed() unreliable says doc.
-float PIDstepperMaxSpeed = 400; //steps per sec
-float zeroingStepperMaxSpeed = 800; //steps per sec
+int      drillLimitSwitchActive = 0;  //1 for active
+// unsigned long checkTime         = 0;
+// unsigned long prevCheckTime     = 0;
+float    drillRPM               = 0;
+float    drillCurrent           = 0;
+float    drillPos               = 0;  //mm from top
+float    mirageAngle            = 0;  //degrees from start
 
-int drillLimitSwitchActive = 0; //1 for active
-unsigned long checkTime = 0;
-unsigned long prevCheckTime = 0;
-float drillRPM = 0;
-float drillCurrent = 0;
-float drillPos = 0; //mm from top
-float mirageAngle = 0; //degrees from start
-
-
+unsigned long fpscount = 0;
+unsigned long t1 = 0;
+unsigned long t2 = 0;
 void setup() {
+    pinMode(sensor_interupt_pin, INPUT);
     pinMode(limitSwitchPin, INPUT);
     pinMode(heaterRelayPin, OUTPUT);
     pinMode(pumpRelayPin, OUTPUT);
+    attachInterrupt(digitalPinToInterrupt(sensor_interupt_pin), addValue, RISING);
 
     Serial.begin(115200);
     while (!Serial) {
@@ -98,47 +109,27 @@ void setup() {
     // pinMode(AC_pin, OUTPUT);
     // attachInterrupt(0, Drill_RPM, FALLING); //actuator when pin is falling high to low to form square wave
 
-    float calval_LoadCell;
-    // Define calibration values given by the calibration script
-    calval_LoadCell = 100;
-    LoadCell.begin();
-    unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
-    boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
-    byte LoadCell_ready = 0;
-    //run startup, stabilization and tare, both modules simultaniously
-    // while ((LoadCell_ready) < 1) {
-    //     if (!LoadCell_ready) LoadCell_ready = LoadCell.startMultiple(stabilizingtime, _tare);
-    //     Serial.println("in loop");
-    // }
-    if (LoadCell.getTareTimeoutFlag()) {
-        Serial.println("Timeout, check wiring and pin designations for load cell module");
-    }
-    // Apply calibration value
-    LoadCell.setCalFactor(calval_LoadCell);
-    Serial.println("Startup is complete");
+    setupLoadCell();
 
     DrillStepper.setMaxSpeed(drillStepperMaxSpeed);
     MirageStepper.setMaxSpeed(400); // Steps per second
     // MirageStepper.setSpeed(400);
     MirageStepper.setAcceleration(50); //Steps/sec^2
-
-
 }
 
-void loop() {
-    checkTime = millis();
-    if (checkTime - prevCheckTime > checkRate) {//20 times per sec
-        checkLimitSwitches(); //may need to set timer for this to not check every loop
-        checkRelayCmds();
-        prevCheckTime = millis();
-    }
 
+void loop() {
+    // fpsCounter();
+    checkRelayCmds();
+    // checkLoadCellTare();
+    // checkLimitSwitches(); can't bc not tied low (will bounce around if not actually connect)
+    // if (LoadCell.update()) WOB = LoadCell.getData();
+    getdrillRPM();
     setDrillSpeed();
     setMiragePosition();
 
     MirageStepper.run();
     DrillStepper.runSpeed();
-
 
     doHousekeeping();
 }
@@ -151,7 +142,7 @@ void loop() {
 
 void sendDataOut() {
     //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive] ... update as needed
-    drillPos = DrillStepper.currentPosition() / stepsPerRev * leadScrewLead; //mm from limit switch, add offset to get pos of tip of drillbit
+    drillPos = DrillStepper.currentPosition() * drillStepperRatio;
     mirageAngle = MirageStepper.currentPosition();
     Serial.print(WOB, 2);
     Serial.print(",");
@@ -165,8 +156,9 @@ void sendDataOut() {
     Serial.print(",");
     Serial.print(drillLimitSwitchActive, DEC);
     Serial.print(",");
-    //mode, dir, speed, miragePos
     //sanity check from matlab below
+    //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
+
     Serial.print(cmds.drillControlMode, DEC); //formated as int
     Serial.print(",");
     Serial.print(cmds.drillMovementDirection, DEC); //formated as int
@@ -174,6 +166,14 @@ void sendDataOut() {
     Serial.print(cmds.speed, 2); //formated as float to 2 decials
     Serial.print(",");
     Serial.print(cmds.miragePositionCmd, DEC); //formated as int
+    Serial.print(",");
+    Serial.print(cmds.Drill_RPM, DEC); //formated as int
+    Serial.print(",");
+    Serial.print(cmds.heaterCmd, DEC); //formated as int
+    Serial.print(",");
+    Serial.print(cmds.pumpCmd, DEC); //formated as int
+    Serial.print(",");
+    Serial.print(cmds.tareCmd, DEC); //formated as int
     Serial.print("\n"); //serial terminator
 }
 void serialEvent() {
@@ -202,7 +202,7 @@ void formatIncomingData() {
     }
     // Serial.println("here: " + String(arrayOfcstring[1]));
 }
-void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump]
+void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
     //mode
     cmds.drillControlMode = atoi(arrayOfcstring[0]);
     //direction
@@ -217,7 +217,8 @@ void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heate
     cmds.heaterCmd = atoi(arrayOfcstring[5]);
     //pump
     cmds.pumpCmd = atoi(arrayOfcstring[6]);
-
+    //load cell
+    cmds.tareCmd = atoi(arrayOfcstring[7]);
 }
 void doHousekeeping() {
     if (incomingStringComplete) {
@@ -239,32 +240,15 @@ void setMiragePosition() {
 }
 
 void checkRelayCmds() {
-    if (cmds.pumpCmd == 1) digitalWrite(pumpRelayPin, HIGH);
+    if (cmds.pumpCmd == 1) {
+        digitalWrite(pumpRelayPin, HIGH);
+    }
     else digitalWrite(pumpRelayPin, LOW);
 
     if (cmds.heaterCmd == 1) digitalWrite(heaterRelayPin, HIGH);
     else digitalWrite(heaterRelayPin, LOW);
 }
-// void activateHeater(int command) {
-//     if (command == 1) {
-//         //set arduino pins connected to relay high
-//     }
-//     else if (command == 0) {
-//         //set arduino pins connected to relay low
-//     }
-// }
 
-// void activatePump(int command) {
-//     if (command == 1) {
-//         //set arduino pins connected to relay high
-//     }
-//     else if (command == 0) {
-//         //set arduino pins connected to relay low
-//     }
-//     else if (command == -1) {
-//         //reverse pump ??
-//     }
-// }
 void getMSE() {
     // float drillTorque = getDrillTorque();
     // float drillRPM = getDrillRPM();
@@ -314,7 +298,52 @@ void setDrillSpeed() {
     }
 }
 
+void checkLoadCellTare() {
+    if (cmds.tareCmd == 1) {
+        LoadCell.tareNoDelay();
+        cmds.tareCmd = 0;
+    }
+    if (LoadCell.getTareStatus() == true) { //check if last tare operation is complete
+        Serial.println("Tare Load Cell Complete");
+    }
 
+}
+
+void setupLoadCell() {
+    // Define calibration values given by the calibration script
+    float calval_LoadCell;
+    calval_LoadCell = 100;
+    LoadCell.begin();
+    unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
+    boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
+    byte LoadCell_ready = 0;
+
+    //BLOCKING IF NOT ATTACHED?
+    //run startup, stabilization and tare, both modules simultaniously
+    // while ((LoadCell_ready) < 1) {
+    //     if (!LoadCell_ready) LoadCell_ready = LoadCell.startMultiple(stabilizingtime, _tare);
+    // }
+
+    if (LoadCell.getTareTimeoutFlag()) {
+        Serial.println("Timeout, check wiring and pin designations for load cell module");
+    }
+    // Apply calibration value
+    LoadCell.setCalFactor(calval_LoadCell);
+    Serial.println("Load Cell startup is complete");
+}
+
+void addValue() {
+    rotations++; // counts
+}
+void getdrillRPM() {
+    if (rotations >= min_RPM_rotations) { // doesn't allow loop to start until rotation value is met (basically stabilizing the measurement)
+        unsigned long end_time = micros(); // assigns end time
+        unsigned long elapsedtime = ((end_time - start_time) / 1000000.0); // How much time passed? (convert back to seconds from microseconds)
+        drillRPM = (rotations / elapsedtime) * 60.0; // Convert to RPM
+        rotations = 0;
+        start_time = micros(); // reassigns start time to a new value
+    }
+}
 // possible control of dimmer module
 // void Drill_RPM() {
 //     if (Serial.available()) {
@@ -323,12 +352,10 @@ void setDrillSpeed() {
 //             //Turn TRIAC completely OFF if dim is 0
 //             digitalWrite(AC_pin, LOW);
 //         }
-
 //         if (dim > 254) { //Turn TRIAC completely ON if dim is 255
 //             digitalWrite(AC_pin, HIGH);
 //         }
 //     }
-
 //     if (dim > 0 && dim < 255) {
 //         //Dimming part, if dim is not 0 and not 255
 //         delayMicroseconds(34 * (255 - dim));
@@ -338,8 +365,18 @@ void setDrillSpeed() {
 //     }
 // }
 
-
 // #define ZeroCrPin   2// interrupt 0
 // volatile unsigned long zcUsec = 0;  // must be set to volatile when used within an interrupt.
 // attachInterrupt(0, [] {zcUsec = micros()}, FALLING); // used an anonomous function (lambda funciton) to set zcUsec to micros()
 
+void fpsCounter() {
+    t1 = millis();
+    if ((t1 - t2) > 1000) {
+        Serial.println(fpscount);
+        fpscount = 0;
+        t2 = millis();
+    }
+    else {
+        fpscount++;
+    }
+}

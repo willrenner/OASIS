@@ -8,7 +8,7 @@ global running;
 running = true;
 % addpath('../../app'); %to be able to run next line to open app
 appHandle = arduinoApp;
-serialPort = serialport("COM3", 115200);
+serialPort = serialport("COM4", 115200);
 configureTerminator(serialPort,"LF"); %sets newline as line ending
 flush(serialPort); %so that data doesnt get clogged/backed up
 configureCallback(serialPort,"terminator",@readSerialData)
@@ -19,7 +19,7 @@ changedTimer = tic;
 count = 0;
 
 while(running)
-%     try
+    try
         if (toc(changedTimer) > 0.25) %sets a send rate
             changed = true;
             changedTimer = tic;
@@ -39,7 +39,7 @@ while(running)
                 %-----log to file----
                 %log all values
 %                 t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z')
-%                 p = posixtime(t)
+% %                 p = posixtime(t)
 %                 fprintf(fileID,'%i-%i-%i-%i-%i-%2.3f %.2f\r\n',c, y); % Write to file
 %                 fprintf(fileID,'%.2f %.2f\r\n',c, y); % Write to file  
             else %meaning Serial debug statment, and not data array
@@ -49,10 +49,10 @@ while(running)
             dataRecieved = false;
         end
         pause(0.01);
-%     catch
-%         disp("ERROR!");
-%         break;
-%     end
+    catch
+        disp("ERROR!");
+        break;
+    end
 end
 disp('Stopped... final info:');
 disp('data: ' + data);
@@ -61,7 +61,7 @@ clear all;
 
 
 
-function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump]
+function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
     drillCmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
@@ -69,7 +69,11 @@ function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, mirag
     rpm = appHand.RPMSpeed_Cmd;
     heater = appHand.Heater_Cmd;
     pump = appHand.Pump_Cmd;
-    returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," + rpm + "," + heater + "," + pump;
+    tare = appHand.Tare_Cmd;
+    if (tare == 1)
+        appHand.Tare_Cmd = 0; %reset tare to 0 in app
+    end
+    returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," + rpm + "," + heater + "," + pump + "," + tare;
 end
 
 function readSerialData(src,~)
@@ -81,7 +85,7 @@ end
 
 function setAppData(appHandle, dataArray)
     WOB = round(str2double(dataArray(1)), 2);
-    % drillRPM = round(str2double(dataArray(2)), 2);
+    drillRPM = round(str2double(dataArray(2)), 2);
     drillCurrent = round(str2double(dataArray(3)), 2); 
     drillPos = round(str2double(dataArray(4)), 2);
     mirageAngle = round(str2double(dataArray(5)), 2);
@@ -89,6 +93,7 @@ function setAppData(appHandle, dataArray)
 
     %-----send to app-----
     appHandle.WOBNEditField.Value = WOB;
+    appHandle.DrillRPMEditField.Value = drillRPM;
     appHandle.DrillPosmmEditField.Value = drillPos;
     appHandle.MiragePosdegEditField.Value = mirageAngle;
     appHandle.DrillCurrentAEditField.Value = drillCurrent;
