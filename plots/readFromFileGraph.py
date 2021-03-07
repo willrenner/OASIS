@@ -5,7 +5,7 @@ import os
 import datetime
 
 
-pg.setConfigOption('background', (7, 0.00, 23))
+pg.setConfigOption('background', (13, 0.00, 50))
 pg.setConfigOption('foreground', 'w')
 win = pg.GraphicsLayoutWidget(show=True)
 win.setWindowTitle('AARC Telem')
@@ -30,7 +30,7 @@ class TimeAxisItem(pg.AxisItem):
 
 
 def int2dt(ts, ts_mult=TS_MULT_us): #makes string from a value for the tick mark
-    return(datetime.datetime.fromtimestamp(float(1000)/ts_mult)) #ts is posix time in seconds times 1e6
+    return(datetime.datetime.fromtimestamp(float(ts)/ts_mult)) #ts is posix time in seconds times 1e6
 
 
 # ---------------------------------------------------------------------------------------------------------------
