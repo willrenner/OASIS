@@ -14,6 +14,14 @@ dataArray = []
 timeArray = []
 y1Array = []
 y2Array = []
+y3Array = []
+y4Array = []
+y5Array = []
+y6Array = []
+
+
+
+
 
 TS_MULT_us = 1e6
 
@@ -29,49 +37,105 @@ def int2dt(ts, ts_mult=TS_MULT_us): #makes string from a value for the tick mark
     return(datetime.datetime.fromtimestamp(float(ts)/ts_mult)) #ts is posix time in seconds times 1e6
 
 
-# 1) Simplest approach -- update data in the array such that plot appears to scroll. In these examples, the array size is fixed.
+# ---------------------------------------------------------------------------------------------------------------
 pg.setConfigOptions(antialias=True)
-tai1 = TimeAxisItem(orientation='bottom')
-p1 = win.addPlot(row=0, col=0, labels={'left': "WOB (N)"}, axisItems={
-    'bottom': tai1}, title="WOB Plot (last 10 seconds)")
-tai1.enableAutoSIPrefix(enable=False)
-p1.setMouseEnabled(y=False)
-curve1 = p1.plot()
-ptr1 = 0
-def update1():
-    global ptr1
+tai_WOB = TimeAxisItem(orientation='bottom')
+plot_WOB = win.addPlot(row=0, col=0, labels={'left': "WOB (N)"}, axisItems={
+    'bottom': tai_WOB}, title="WOB Plot (last 10 seconds)")
+tai_WOB.enableAutoSIPrefix(enable=False)
+plot_WOB.setMouseEnabled(y=False)
+curve_WOB = plot_WOB.plot()
+ptr_WOB = 0
+def update_WOB1():
+    global ptr_WOB
     readLastLine()
-    ptr1 += 1
-    curve1.setData(x=timeArray[-200:], y=y1Array[-200:])
-    curve1.setPos(ptr1, 0)
+    ptr_WOB += 1
+    curve_WOB.setData(x=timeArray[-200:], y=y1Array[-200:])
+    curve_WOB.setPos(ptr_WOB, 0)
 
-# 2) Allow data to accumulate. In these examples, the array doubles in length whenever it is full.
-tai2 = TimeAxisItem(orientation='bottom')
-tai2.enableAutoSIPrefix(enable=False)
-p2 = win.addPlot(row=0, col=1, labels={'left': "WOB (N)"}, axisItems={
-    'bottom': tai2}, title="WOB Plot (enitre history)")
+# ---------------------------------------------------------------------------------------------------------------
+tai_WOB2 = TimeAxisItem(orientation='bottom')
+tai_WOB2.enableAutoSIPrefix(enable=False)
+plot_WOB2 = win.addPlot(row=0, col=1, labels={'left': "WOB (N)"}, axisItems={
+    'bottom': tai_WOB2}, title="WOB Plot (enitre history)")
 # Use automatic downsampling and clipping to reduce the drawing load
-p2.setDownsampling(mode='peak')
-p2.setClipToView(True)
-p2.setMouseEnabled(y=False)
-curve2 = p2.plot()
-def update2():
-    curve2.setData(x=timeArray, y=y1Array)
-
-
-# 2) Allow data to accumulate. In these examples, the array doubles in length whenever it is full.
-tai3 = TimeAxisItem(orientation='bottom')
-tai3.enableAutoSIPrefix(enable=False)
-p3 = win.addPlot(row=1, col=0, labels={'left': "Angle (Degrees)"}, axisItems={
-    'bottom': tai3}, title="Mirage Angle Plot (enitre history)")
+plot_WOB2.setDownsampling(mode='peak')
+plot_WOB2.setClipToView(True)
+plot_WOB2.setMouseEnabled(y=False)
+curve_WOB2 = plot_WOB2.plot()
+def update_WOB2():
+    curve_WOB2.setData(x=timeArray, y=y1Array)
+# ---------------------------------------------------------------------------------------------------------------
+tai_DrillRPM = TimeAxisItem(orientation='bottom')
+tai_DrillRPM.enableAutoSIPrefix(enable=False)
+plot_DrillRPM = win.addPlot(row=1, col=0, labels={'left': "Drill RPM"}, axisItems={
+    'bottom': tai_DrillRPM}, title="Drill RPM (enitre history)")
 # Use automatic downsampling and clipping to reduce the drawing load
-p3.setDownsampling(mode='peak')
-p3.setClipToView(True)
-p3.setMouseEnabled(y=False)
-curve3 = p3.plot()
-def update3():
-    curve3.setData(x=timeArray, y=y2Array)
+plot_DrillRPM.setDownsampling(mode='peak')
+plot_DrillRPM.setClipToView(True)
+plot_DrillRPM.setMouseEnabled(y=False)
+curve_DrillRPM = plot_DrillRPM.plot()
 
+
+def update_DrillRPM():
+    curve_DrillRPM.setData(x=timeArray, y=y2Array)
+# ---------------------------------------------------------------------------------------------------------------
+tai_DrillXpos = TimeAxisItem(orientation='bottom')
+tai_DrillXpos.enableAutoSIPrefix(enable=False)
+plot_DrillXpos = win.addPlot(row=2, col=0, labels={'left': "Drill X-Position From Limit Switch (mm)"}, axisItems={
+    'bottom': tai_DrillXpos}, title="Drill X-Position (enitre history)")
+# Use automatic downsampling and clipping to reduce the drawing load
+plot_DrillXpos.setDownsampling(mode='peak')
+plot_DrillXpos.setClipToView(True)
+plot_DrillXpos.setMouseEnabled(y=False)
+curve_DrillXpos = plot_DrillXpos.plot()
+
+
+def update_DrillXpos():
+    curve_DrillXpos.setData(x=timeArray, y=y4Array)
+# ---------------------------------------------------------------------------------------------------------------
+tai_MirageAngle = TimeAxisItem(orientation='bottom')
+tai_MirageAngle.enableAutoSIPrefix(enable=False)
+plot_MirageAngle = win.addPlot(row=2, col=1, labels={'left': "Mirage Angle (deg)"}, axisItems={
+    'bottom': tai_MirageAngle}, title="Mirage Angle From Start Position (enitre history)")
+# Use automatic downsampling and clipping to reduce the drawing load
+plot_MirageAngle.setDownsampling(mode='peak')
+plot_MirageAngle.setClipToView(True)
+plot_MirageAngle.setMouseEnabled(y=False)
+curve_MirageAngle = plot_MirageAngle.plot()
+
+
+def update_MirageAngle():
+    curve_MirageAngle.setData(x=timeArray, y=y5Array)
+# ---------------------------------------------------------------------------------------------------------------
+tai_LimSwitch = TimeAxisItem(orientation='bottom')
+tai_LimSwitch.enableAutoSIPrefix(enable=False)
+plot_LimSwitch = win.addPlot(row=3, col=0, labels={'left': "Limit Switch Active (bool)"}, axisItems={
+    'bottom': tai_LimSwitch}, title="Limit Switch Activity (enitre history)")
+# Use automatic downsampling and clipping to reduce the drawing load
+plot_LimSwitch.setDownsampling(mode='peak')
+plot_LimSwitch.setClipToView(True)
+plot_LimSwitch.setMouseEnabled(y=False)
+curve_LimSwitch = plot_LimSwitch.plot()
+def update_LimSwitch():
+    curve_LimSwitch.setData(x=timeArray, y=y6Array)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+tai_DrillCurrent = TimeAxisItem(orientation='bottom')
+tai_DrillCurrent.enableAutoSIPrefix(enable=False)
+plot_DrillCurrent = win.addPlot(row=1, col=1, labels={'left': "Drill Current (Amps) "}, axisItems={
+    'bottom': tai_DrillCurrent}, title="Drill Current (enitre history)")
+# Use automatic downsampling and clipping to reduce the drawing load
+plot_DrillCurrent.setDownsampling(mode='peak')
+plot_DrillCurrent.setClipToView(True)
+plot_DrillCurrent.setMouseEnabled(y=False)
+curve_DrillCurrent = plot_DrillCurrent.plot()
+
+
+def update_DrillCurrent():
+    curve_DrillCurrent.setData(x=timeArray, y=y3Array)
+# ---------------------------------------------------------------------------------------------------------------
 
 def readLastLine():  # actually gets second to last line b/c last line might not be finished from matlab
     with open(fName, "rb") as file:  # binary mode, must do this to start at end of file
@@ -89,13 +153,22 @@ def readLastLine():  # actually gets second to last line b/c last line might not
         timeArray.append(int(float(dataArray[0]) * TS_MULT_us))
         y1Array.append(float(dataArray[1]))
         y2Array.append(float(dataArray[2]))
+        y3Array.append(float(dataArray[3]))
+        y4Array.append(float(dataArray[4]))
+        y5Array.append(float(dataArray[5]))
+        y6Array.append(float(dataArray[6]))
+
+
 
 
 def update():
-    update1()
-    update2()
-    update3()
-
+    update_WOB1()
+    update_WOB2()
+    update_DrillRPM()
+    update_DrillXpos()
+    update_MirageAngle()
+    update_LimSwitch()
+    update_DrillCurrent()
 
 def getLineCount():
     count = 0

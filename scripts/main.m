@@ -35,14 +35,10 @@ while(running)
             sizeOfArr = size(dataArray);
             if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
                 fprintf("WOB: %3.2f, RPM: %7.2f, Current: %2.2f, Z-Pos: %6.2f, Mir-Ang: %7.2f, Lim-Sw: %2.0f --- ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5), dataArray(6));
-%                 [drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
+%               [drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
                 fprintf("CmdMode: %2.0f, DirectionCmd: %2.0f, SpeedCmd: %7.2f, MirageAngleCmd: %7.2f, RPM_Cmd: %7.2f, HeaterCmd: %2.0f, PumpCmd: %2.0f, TareCmd: %2.0f\n",dataArray(7),dataArray(8),dataArray(9),dataArray(10),dataArray(11), dataArray(12), dataArray(13), dataArray(14));
-                setAppData(appHandle, dataArray);
-                %-----log to file----
-                %log all values
-                t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
-                p = posixtime(t);
-                fprintf(fileID,'%.3f %.2f %.2f\r\n',p, dataArray(2), dataArray(5)); % Write to file  
+                setAppData(appHandle, dataArray); %change data in app
+                writeDataToFile(dataArray, fileID) %log to file
             else %meaning Serial debug statment, and not data array
                 disp("Message from arduino: ");
                 disp(data);
@@ -57,14 +53,19 @@ while(running)
         break;
     end
 end
-disp('Stopped... final info:');
-disp('data: ' + data);
 configureCallback(serialPort,"off");
 clear all;
 
 
 
-function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
+function writeDataToFile(da, fid)
+    t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
+    p = posixtime(t);
+%   [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive]
+    fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6)); % Write to file  
+end
+
+function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve]
     drillCmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
@@ -73,10 +74,12 @@ function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, mirag
     heater = appHand.Heater_Cmd;
     pump = appHand.Pump_Cmd;
     tare = appHand.Tare_Cmd;
+    zeroCmd = appHand.DrillZero_Cmd;
+    fakeZero = appHand.FakeZero_Cmd;
     if (tare == 1)
         appHand.Tare_Cmd = 0; %reset tare to 0 in app
     end
-    returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," + rpm + "," + heater + "," + pump + "," + tare;
+    returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," + rpm + "," + heater + "," + pump + "," + tare + "," + zeroCmd + "," + fakeZero;
 end
 
 function readSerialData(src,~)

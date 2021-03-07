@@ -82,6 +82,6 @@ void loop() {
   if (LoadCell.getTareStatus() == true) {
     Serial.println("Tare Load Cell Complete");
   }
-
+  
 }
 // (Jay)Note: Credit for the ADC libray goes to Olav Kallhovd (GitHub)

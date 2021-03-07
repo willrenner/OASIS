@@ -1,31 +1,33 @@
 #include "AccelStepper.h"
 #include <HX711_ADC.h> // Include ADC Libraries
 
-struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
+struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve]
     int drillControlMode; // 1 for manual rop control, 0 for automatic (pid)
     int drillMovementDirection; // 1 for down, 0 for stop, -1 for up
     double speed;
     int miragePositionCmd;
-    int drillZeroCommand;
     int Drill_RPM;
     int heaterCmd;
     int pumpCmd;
     int tareCmd;
+    int zeroCmd;
+    int fakeZero;
 };
 
-controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
+controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve]
     .drillControlMode = 1,
     .drillMovementDirection = 0,
     .speed = 0,
     .miragePositionCmd = 0,
-    .drillZeroCommand = 0, //tbd
     .Drill_RPM = 0,
     .heaterCmd = 0,
     .pumpCmd = 0,
-    .tareCmd = 0
+    .tareCmd = 0,
+    .zeroCmd = 0,
+    .fakeZero = 0
 };
 
-#define numCmds 8 //num of vars in struct above
+#define numCmds 10 //num of vars in struct above
 #define sizeOfCmd 100 //number of chars sent from matlab to arduino must be less than this
 #define limitSwitchPin 5
 #define AC_pin 999 //PWM pin for dimmer 
@@ -42,7 +44,8 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
 #define leadScrewLead 8 // mm/rev
 #define drillStepperMaxSpeed 800 //steps per sec, over 1000 makes setSpeed() unreliable says doc.
 #define PIDstepperMaxSpeed 400 //steps per sec
-#define zeroingStepperMaxSpeed 800 //steps per sec
+#define zeroingStepperMaxSpeed 100 //steps per sec
+
 
 unsigned long rotations         = 0;  
 int      min_RPM_rotations      = 5;
@@ -88,6 +91,10 @@ float    drillCurrent           = 0;
 float    drillPos               = 0;  //mm from top
 float    mirageAngle            = 0;  //degrees from start
 
+// float voltages[60] = { 0 }; //60 points per full sine wave----- might can get from dimmer switch module
+// float currents[60] = { 0 }; //60 points per full sine wave
+
+
 unsigned long fpscount = 0;
 unsigned long t1 = 0;
 unsigned long t2 = 0;
@@ -111,20 +118,27 @@ void setup() {
 
     DrillStepper.setMaxSpeed(drillStepperMaxSpeed);
     MirageStepper.setMaxSpeed(400); // Steps per second
-    // MirageStepper.setSpeed(400);
     MirageStepper.setAcceleration(50); //Steps/sec^2
 }
 
 
 void loop() {
-    fpsCounter();
+    // fpsCounter();
     checkRelayCmds();
     checkLoadCellTare();
     // checkLimitSwitches(); can't bc not tied low (will bounce around if not actually connected)
     if (LoadCell.update()) WOB = LoadCell.getData();
     getdrillRPM();
+    getdrillVoltageCurrent();
     setDrillSpeed();
     setMiragePosition();
+
+
+    // DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection);
+    // Serial.print("speed: ");
+    // Serial.print(cmds.speed * cmds.drillMovementDirection);
+    // Serial.print("      pos: ");
+    // Serial.println(DrillStepper.currentPosition());
 
     MirageStepper.run();
     DrillStepper.runSpeed();
@@ -140,7 +154,7 @@ void loop() {
 
 void sendDataOut() {
     //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive] ... update as needed
-    drillPos = DrillStepper.currentPosition() * drillStepperRatio;
+    drillPos = DrillStepper.currentPosition();
     mirageAngle = MirageStepper.currentPosition();
     Serial.print(WOB, 2);
     Serial.print(",");
@@ -200,7 +214,7 @@ void formatIncomingData() {
     }
     // Serial.println("here: " + String(arrayOfcstring[1]));
 }
-void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
+void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve]
     //mode
     cmds.drillControlMode = atoi(arrayOfcstring[0]);
     //direction
@@ -217,6 +231,12 @@ void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heate
     cmds.pumpCmd = atoi(arrayOfcstring[6]);
     //load cell
     cmds.tareCmd = atoi(arrayOfcstring[7]);
+    //zero cmd
+    cmds.zeroCmd = atoi(arrayOfcstring[8]);
+    //fake zero
+    cmds.fakeZero = atoi(arrayOfcstring[9]);
+    if (cmds.fakeZero == 1) drillLimitSwitchActive = 1;
+    else drillLimitSwitchActive = 0;
 }
 void doHousekeeping() {
     if (incomingStringComplete) {
@@ -283,7 +303,7 @@ void setDrillSpeed() {
         }
     }
     else {
-        if (cmds.drillZeroCommand == 1) { //zeroing
+        if (cmds.zeroCmd == 1) { //zeroing
             DrillStepper.setSpeed(zeroingStepperMaxSpeed * -1); // moveup
         }
         else if (cmds.drillControlMode == 0) { //automatic/limit WOB/pid control mode
@@ -378,4 +398,8 @@ void fpsCounter() {
     else {
         fpscount++;
     }
+}
+
+void getdrillVoltageCurrent() {
+
 }
