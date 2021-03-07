@@ -54,6 +54,7 @@ while(running)
     end
 end
 configureCallback(serialPort,"off");
+fclose(fileID);
 clear all;
 
 
