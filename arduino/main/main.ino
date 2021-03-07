@@ -54,12 +54,10 @@ AccelStepper DrillStepper(1, drillStepPin, drillDirPin); //driver, step, dir pin
 AccelStepper MirageStepper(1, mirageStepPin, mirageDirPin);
 HX711_ADC LoadCell(HX711_data_1, HX711_clck_1); // Module 1 for drilling system
 
-
-
 unsigned long currTime           = 0;
 unsigned long prevTime           = 0;
 // const    unsigned long checkRate = 20;     //ms
-const    unsigned long sendRate  = 200;    //ms
+const    unsigned long sendRate  = 100;    //ms
 bool     incomingStringComplete  = false;  // whether the string is complete
 int      currPosOfChar           = 0;
 
@@ -119,11 +117,11 @@ void setup() {
 
 
 void loop() {
-    // fpsCounter();
+    fpsCounter();
     checkRelayCmds();
-    // checkLoadCellTare();
-    // checkLimitSwitches(); can't bc not tied low (will bounce around if not actually connect)
-    // if (LoadCell.update()) WOB = LoadCell.getData();
+    checkLoadCellTare();
+    // checkLimitSwitches(); can't bc not tied low (will bounce around if not actually connected)
+    if (LoadCell.update()) WOB = LoadCell.getData();
     getdrillRPM();
     setDrillSpeed();
     setMiragePosition();
@@ -302,6 +300,7 @@ void checkLoadCellTare() {
     if (cmds.tareCmd == 1) {
         LoadCell.tareNoDelay();
         cmds.tareCmd = 0;
+        Serial.println("Started Tare");
     }
     if (LoadCell.getTareStatus() == true) { //check if last tare operation is complete
         Serial.println("Tare Load Cell Complete");

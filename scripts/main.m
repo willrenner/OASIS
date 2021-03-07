@@ -12,7 +12,7 @@ serialPort = serialport("COM4", 115200);
 configureTerminator(serialPort,"LF"); %sets newline as line ending
 flush(serialPort); %so that data doesnt get clogged/backed up
 configureCallback(serialPort,"terminator",@readSerialData)
-fileID = fopen("../logs/abcdef.txt", 'a'); %appends to end of file, or creates file and writes to it
+fileID = fopen("../logs/firstLog.txt", 'a'); %appends to end of file, or creates file and writes to it
 % hWaitbar = waitbar(0, 'Running...', 'Name', 'AARC','CreateCancelBtn','delete(gcbf)');
 changed = false;
 changedTimer = tic;
@@ -20,7 +20,7 @@ count = 0;
 
 while(running)
     try
-        if (toc(changedTimer) > 0.25) %sets a send rate
+        if (toc(changedTimer) > 0.1) %sets a send rate
             changed = true;
             changedTimer = tic;
         end
@@ -34,14 +34,15 @@ while(running)
             dataArray = strsplit(data, ',');
             sizeOfArr = size(dataArray);
             if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
-                disp(data);
+                fprintf("WOB: %3.2f, RPM: %7.2f, Current: %2.2f, Z-Pos: %6.2f, Mir-Ang: %7.2f, Lim-Sw: %2.0f --- ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5), dataArray(6));
+%                 [drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
+                fprintf("CmdMode: %2.0f, DirectionCmd: %2.0f, SpeedCmd: %7.2f, MirageAngleCmd: %7.2f, RPM_Cmd: %7.2f, HeaterCmd: %2.0f, PumpCmd: %2.0f, TareCmd: %2.0f\n",dataArray(7),dataArray(8),dataArray(9),dataArray(10),dataArray(11), dataArray(12), dataArray(13), dataArray(14));
                 setAppData(appHandle, dataArray);
                 %-----log to file----
                 %log all values
-%                 t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z')
-% %                 p = posixtime(t)
-%                 fprintf(fileID,'%i-%i-%i-%i-%i-%2.3f %.2f\r\n',c, y); % Write to file
-%                 fprintf(fileID,'%.2f %.2f\r\n',c, y); % Write to file  
+                t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
+                p = posixtime(t);
+                fprintf(fileID,'%.3f %.2f %.2f\r\n',p, dataArray(2), dataArray(5)); % Write to file  
             else %meaning Serial debug statment, and not data array
                 disp("Message from arduino: ");
                 disp(data);
@@ -49,8 +50,10 @@ while(running)
             dataRecieved = false;
         end
         pause(0.01);
-    catch
+    catch e
         disp("ERROR!");
+        fprintf(1,'The identifier was: %s\n',e.identifier);
+        fprintf(1,'The message was: %s\n',e.message);
         break;
     end
 end
