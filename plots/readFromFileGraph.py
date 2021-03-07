@@ -19,10 +19,6 @@ y4Array = []
 y5Array = []
 y6Array = []
 
-
-
-
-
 TS_MULT_us = 1e6
 
 class TimeAxisItem(pg.AxisItem):

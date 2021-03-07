@@ -129,7 +129,7 @@ void loop() {
     // checkLimitSwitches(); can't bc not tied low (will bounce around if not actually connected)
     if (LoadCell.update()) WOB = LoadCell.getData();
     getdrillRPM();
-    getdrillVoltageCurrent();
+    // getdrillVoltageCurrent();
     setDrillSpeed();
     setMiragePosition();
 
@@ -325,7 +325,6 @@ void checkLoadCellTare() {
     if (LoadCell.getTareStatus() == true) { //check if last tare operation is complete
         Serial.println("Tare Load Cell Complete");
     }
-
 }
 
 void setupLoadCell() {
