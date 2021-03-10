@@ -16,8 +16,8 @@ ________________________________________________________________________________
 #include <HX711_ADC.h> // Include ADC Libraries
 
 // declare pins: ------------- Must do before operation
-const int HX711_data_1 = 1;
-const int HX711_clck_1 = 2;
+const int HX711_data_1 = 12;
+const int HX711_clck_1 = 13;
 
 
 //Match pins to adc/sensor modules
@@ -54,7 +54,7 @@ void setup() {
 
 void loop() {
   static boolean newDataReady = 0;
-  const int serialPrintInterval = 0; //increase value to slow down serial print
+  const int serialPrintInterval = 50; //increase value to slow down serial print
 
   // check for new data/start next conversion:
   if (LoadCell.update()) newDataReady = true;
@@ -64,7 +64,8 @@ void loop() {
     if (millis() > t + serialPrintInterval) {
       float WOB = LoadCell.getData();
       Serial.print("    Drilling Load Cell output val: ");
-      Serial.print(WOB);
+      Serial.println(WOB);
+      
       newDataReady = 0;
       t = millis();
     }

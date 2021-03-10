@@ -8,7 +8,7 @@ global running;
 running = true;
 % addpath('../../app'); %to be able to run next line to open app
 appHandle = arduinoApp;
-serialPort = serialport("COM4", 115200);
+serialPort = serialport("COM3", 115200);
 configureTerminator(serialPort,"LF"); %sets newline as line ending
 flush(serialPort); %so that data doesnt get clogged/backed up
 configureCallback(serialPort,"terminator",@readSerialData)

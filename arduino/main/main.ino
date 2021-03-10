@@ -29,16 +29,16 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
 
 #define numCmds 10 //num of vars in struct above
 #define sizeOfCmd 100 //number of chars sent from matlab to arduino must be less than this
-#define limitSwitchPin 5
+#define limitSwitchPin 7
 #define AC_pin 999 //PWM pin for dimmer 
-#define drillStepPin 3
-#define drillDirPin 4
-#define mirageStepPin 6
-#define mirageDirPin 7
+#define drillStepPin 2
+#define drillDirPin 8
+#define mirageStepPin 3
+#define mirageDirPin 9
 #define HX711_data_1 999 //digital pin (Jay used 1 and 2)
 #define HX711_clck_1 999 //digital pin
-#define heaterRelayPin 999
-#define pumpRelayPin 999
+#define heaterRelayPin 5
+#define pumpRelayPin 6
 #define sensor_interupt_pin 18 // interupt pin (On arduino Mega pins 2, 3, 18, 19, 20,& 21 can be used for interupts)
 #define stepsPerRev 200 // (per rev) steps/rev, 1.8deg/step
 #define leadScrewLead 8 // mm/rev
@@ -126,7 +126,7 @@ void loop() {
     // fpsCounter();
     checkRelayCmds();
     checkLoadCellTare();
-    // checkLimitSwitches(); can't bc not tied low (will bounce around if not actually connected)
+    checkLimitSwitches(); //can't bc not tied low (will bounce around if not actually connected)
     if (LoadCell.update()) WOB = LoadCell.getData();
     getdrillRPM();
     // getdrillVoltageCurrent();
@@ -235,8 +235,8 @@ void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heate
     cmds.zeroCmd = atoi(arrayOfcstring[8]);
     //fake zero
     cmds.fakeZero = atoi(arrayOfcstring[9]);
-    if (cmds.fakeZero == 1) drillLimitSwitchActive = 1;
-    else drillLimitSwitchActive = 0;
+    // if (cmds.fakeZero == 1) drillLimitSwitchActive = 1;
+    // else drillLimitSwitchActive = 0;
 }
 void doHousekeeping() {
     if (incomingStringComplete) {
