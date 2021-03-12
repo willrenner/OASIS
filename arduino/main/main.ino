@@ -37,8 +37,8 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
 #define drillDirPin 8
 #define mirageStepPin 3
 #define mirageDirPin 9
-#define HX711_data_1 999 //digital pin (Jay used 1 and 2)
-#define HX711_clck_1 999 //digital pin
+const int HX711_data_1 = 10;
+const int HX711_clck_1 = 11;
 #define heaterRelayPin 6
 #define pumpRelayPin 5
 #define drillRelayPin 13
@@ -342,7 +342,7 @@ void checkLoadCellTare() {
 void setupLoadCell() {
     // Define calibration values given by the calibration script
     float calval_LoadCell;
-    calval_LoadCell = 100;
+    calval_LoadCell = -15000;
     LoadCell.begin();
     unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
     boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
