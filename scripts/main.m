@@ -36,7 +36,7 @@ while(running)
             if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
                 fprintf("WOB: %3.2f, RPM: %7.2f, Current: %2.2f, Z-Pos: %6.2f, Mir-Ang: %7.2f, Lim-Sw: %2.0f --- ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5), dataArray(6));
 %               [drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
-                fprintf("CmdMode: %2.0f, DirectionCmd: %2.0f, SpeedCmd: %7.2f, MirageAngleCmd: %7.2f, RPM_Cmd: %7.2f, HeaterCmd: %2.0f, PumpCmd: %2.0f, TareCmd: %2.0f\n",dataArray(7),dataArray(8),dataArray(9),dataArray(10),dataArray(11), dataArray(12), dataArray(13), dataArray(14));
+                fprintf("CmdMode: %2.0f, DirectionCmd: %2.0f, SpeedCmd: %7.2f, MirageAngleCmd: %7.2f, RPM_Cmd: %7.2f, HeaterCmd: %2.0f, PumpCmd: %2.0f, TareCmd: %2.0f, DrillCmd: %2.0f\n",dataArray(7),dataArray(8),dataArray(9),dataArray(10),dataArray(11), dataArray(12), dataArray(13), dataArray(14), dataArray(15));
                 setAppData(appHandle, dataArray); %change data in app
                 writeDataToFile(dataArray, fileID) %log to file
             else %meaning Serial debug statment, and not data array
@@ -66,7 +66,7 @@ function writeDataToFile(da, fid)
     fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6)); % Write to file  
 end
 
-function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve]
+function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd]
     drillCmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
@@ -77,10 +77,11 @@ function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, mirag
     tare = appHand.Tare_Cmd;
     zeroCmd = appHand.DrillZero_Cmd;
     fakeZero = appHand.FakeZero_Cmd;
+    drillCmd = appHand.Drill_Cmd;
     if (tare == 1)
         appHand.Tare_Cmd = 0; %reset tare to 0 in app
     end
-    returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," + rpm + "," + heater + "," + pump + "," + tare + "," + zeroCmd + "," + fakeZero;
+    returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," + rpm + "," + heater + "," + pump + "," + tare + "," + zeroCmd + "," + fakeZero + "," + drillCmd;
 end
 
 function readSerialData(src,~)

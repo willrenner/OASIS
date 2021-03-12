@@ -9,6 +9,7 @@ struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
     int Drill_RPM;
     int heaterCmd;
     int pumpCmd;
+    int drillCmd;
     int tareCmd;
     int zeroCmd;
     int fakeZero;
@@ -22,12 +23,13 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
     .Drill_RPM = 0,
     .heaterCmd = 0,
     .pumpCmd = 0,
+    .drillCmd = 0,
     .tareCmd = 0,
     .zeroCmd = 0,
     .fakeZero = 0
 };
 
-#define numCmds 10 //num of vars in struct above
+#define numCmds 11 //num of vars in struct above
 #define sizeOfCmd 100 //number of chars sent from matlab to arduino must be less than this
 #define limitSwitchPin 7
 #define AC_pin 999 //PWM pin for dimmer 
@@ -37,8 +39,9 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
 #define mirageDirPin 9
 #define HX711_data_1 999 //digital pin (Jay used 1 and 2)
 #define HX711_clck_1 999 //digital pin
-#define heaterRelayPin 5
-#define pumpRelayPin 6
+#define heaterRelayPin 6
+#define pumpRelayPin 5
+#define drillRelayPin 13
 #define sensor_interupt_pin 18 // interupt pin (On arduino Mega pins 2, 3, 18, 19, 20,& 21 can be used for interupts)
 #define stepsPerRev 200 // (per rev) steps/rev, 1.8deg/step
 #define leadScrewLead 8 // mm/rev
@@ -126,7 +129,7 @@ void loop() {
     // fpsCounter();
     checkRelayCmds();
     checkLoadCellTare();
-    checkLimitSwitches(); //can't bc not tied low (will bounce around if not actually connected)
+    // checkLimitSwitches(); //can't bc not tied low (will bounce around if not actually connected)
     if (LoadCell.update()) WOB = LoadCell.getData();
     getdrillRPM();
     // getdrillVoltageCurrent();
@@ -186,6 +189,8 @@ void sendDataOut() {
     Serial.print(cmds.pumpCmd, DEC); //formated as int
     Serial.print(",");
     Serial.print(cmds.tareCmd, DEC); //formated as int
+    Serial.print(",");
+    Serial.print(cmds.drillCmd, DEC); //formated as int
     Serial.print("\n"); //serial terminator
 }
 void serialEvent() {
@@ -214,7 +219,7 @@ void formatIncomingData() {
     }
     // Serial.println("here: " + String(arrayOfcstring[1]));
 }
-void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve]
+void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd]
     //mode
     cmds.drillControlMode = atoi(arrayOfcstring[0]);
     //direction
@@ -237,6 +242,8 @@ void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heate
     cmds.fakeZero = atoi(arrayOfcstring[9]);
     // if (cmds.fakeZero == 1) drillLimitSwitchActive = 1;
     // else drillLimitSwitchActive = 0;
+    cmds.drillCmd = atoi(arrayOfcstring[10]);
+
 }
 void doHousekeeping() {
     if (incomingStringComplete) {
@@ -265,6 +272,11 @@ void checkRelayCmds() {
 
     if (cmds.heaterCmd == 1) digitalWrite(heaterRelayPin, HIGH);
     else digitalWrite(heaterRelayPin, LOW);
+
+    if (cmds.drillCmd == 1) {
+        digitalWrite(drillRelayPin, HIGH);
+    }
+    else digitalWrite(drillRelayPin, LOW);
 }
 
 void getMSE() {
