@@ -9,7 +9,7 @@ pg.setConfigOption('background', (13, 0.00, 50))
 pg.setConfigOption('foreground', 'w')
 win = pg.GraphicsLayoutWidget(show=True)
 win.setWindowTitle('AARC Telem')
-fName = './logs/secondLog.txt'
+fName = './logs/lineSize.txt'
 dataArray = []
 timeArray = []
 y1Array = []
@@ -40,7 +40,7 @@ plot_WOB = win.addPlot(row=0, col=0, labels={'left': "WOB (N)"}, axisItems={
     'bottom': tai_WOB}, title="WOB Plot (last 10 seconds)")
 tai_WOB.enableAutoSIPrefix(enable=False)
 plot_WOB.setMouseEnabled(y=False)
-curve_WOB = plot_WOB.plot()
+curve_WOB = plot_WOB.plot(pen=pg.mkPen('w', width=3))
 ptr_WOB = 0
 def update_WOB1():
     global ptr_WOB
@@ -58,7 +58,7 @@ plot_WOB2 = win.addPlot(row=0, col=1, labels={'left': "WOB (N)"}, axisItems={
 plot_WOB2.setDownsampling(mode='peak')
 plot_WOB2.setClipToView(True)
 plot_WOB2.setMouseEnabled(y=False)
-curve_WOB2 = plot_WOB2.plot()
+curve_WOB2 = plot_WOB2.plot(pen=pg.mkPen('w', width=3))
 def update_WOB2():
     curve_WOB2.setData(x=timeArray, y=y1Array)
 # ---------------------------------------------------------------------------------------------------------------
@@ -70,7 +70,7 @@ plot_DrillRPM = win.addPlot(row=1, col=0, labels={'left': "Drill RPM"}, axisItem
 plot_DrillRPM.setDownsampling(mode='peak')
 plot_DrillRPM.setClipToView(True)
 plot_DrillRPM.setMouseEnabled(y=False)
-curve_DrillRPM = plot_DrillRPM.plot()
+curve_DrillRPM = plot_DrillRPM.plot(pen=pg.mkPen('w', width=3))
 
 
 def update_DrillRPM():
@@ -79,12 +79,12 @@ def update_DrillRPM():
 tai_DrillXpos = TimeAxisItem(orientation='bottom')
 tai_DrillXpos.enableAutoSIPrefix(enable=False)
 plot_DrillXpos = win.addPlot(row=2, col=0, labels={'left': "Drill X-Position From Limit Switch (mm)"}, axisItems={
-    'bottom': tai_DrillXpos}, title="Drill X-Position (enitre history)")
+    'bottom': tai_DrillXpos}, title="Drill Z-Position (enitre history)")
 # Use automatic downsampling and clipping to reduce the drawing load
 plot_DrillXpos.setDownsampling(mode='peak')
 plot_DrillXpos.setClipToView(True)
 plot_DrillXpos.setMouseEnabled(y=False)
-curve_DrillXpos = plot_DrillXpos.plot()
+curve_DrillXpos = plot_DrillXpos.plot(pen=pg.mkPen('w', width=3))
 
 
 def update_DrillXpos():
@@ -98,7 +98,7 @@ plot_MirageAngle = win.addPlot(row=2, col=1, labels={'left': "Mirage Angle (deg)
 plot_MirageAngle.setDownsampling(mode='peak')
 plot_MirageAngle.setClipToView(True)
 plot_MirageAngle.setMouseEnabled(y=False)
-curve_MirageAngle = plot_MirageAngle.plot()
+curve_MirageAngle = plot_MirageAngle.plot(pen=pg.mkPen('w', width=3))
 
 
 def update_MirageAngle():
@@ -112,7 +112,7 @@ plot_LimSwitch = win.addPlot(row=3, col=0, labels={'left': "Limit Switch Active 
 plot_LimSwitch.setDownsampling(mode='peak')
 plot_LimSwitch.setClipToView(True)
 plot_LimSwitch.setMouseEnabled(y=False)
-curve_LimSwitch = plot_LimSwitch.plot()
+curve_LimSwitch = plot_LimSwitch.plot(pen=pg.mkPen('w', width=3))
 def update_LimSwitch():
     curve_LimSwitch.setData(x=timeArray, y=y6Array)
 
@@ -126,7 +126,7 @@ plot_DrillCurrent = win.addPlot(row=1, col=1, labels={'left': "Drill Current (Am
 plot_DrillCurrent.setDownsampling(mode='peak')
 plot_DrillCurrent.setClipToView(True)
 plot_DrillCurrent.setMouseEnabled(y=False)
-curve_DrillCurrent = plot_DrillCurrent.plot()
+curve_DrillCurrent = plot_DrillCurrent.plot(pen=pg.mkPen('w', width=3))
 
 
 def update_DrillCurrent():
@@ -196,7 +196,7 @@ def loadAllPreviousValues():  # returns an array of all data in file
 
 timer = pg.QtCore.QTimer()
 timer.timeout.connect(update)
-timer.start(50)  # ms
+timer.start(1000)  # ms
 
 # Start Qt event loop unless running in interactive mode or using pyside.
 if __name__ == '__main__':

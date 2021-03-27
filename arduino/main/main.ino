@@ -45,9 +45,10 @@ const int HX711_clck_1 = 11;
 #define sensor_interupt_pin 18 // interupt pin (On arduino Mega pins 2, 3, 18, 19, 20,& 21 can be used for interupts)
 #define stepsPerRev 200 // (per rev) steps/rev, 1.8deg/step
 #define leadScrewLead 8 // mm/rev
-#define drillStepperMaxSpeed 800 //steps per sec, over 1000 makes setSpeed() unreliable says doc.
-#define PIDstepperMaxSpeed 400 //steps per sec
-#define zeroingStepperMaxSpeed 100 //steps per sec
+#define drillStepperMaxSpeed 1000 //steps per sec, over 1000 makes setSpeed() unreliable says doc.  (1875 is max per the linear rail, 4000 per the stepper motor)
+#define mmPerSec_to_stepsPerSec 25 //mult mm/sec by this to get steps/sec
+#define PIDstepperMaxSpeed 50 //steps per sec
+#define zeroingStepperMaxSpeed 1000 //steps per sec
 
 
 unsigned long rotations         = 0;  
@@ -93,10 +94,6 @@ float    drillRPM               = 0;
 float    drillCurrent           = 0;
 float    drillPos               = 0;  //mm from top
 float    mirageAngle            = 0;  //degrees from start
-
-// float voltages[60] = { 0 }; //60 points per full sine wave----- might can get from dimmer switch module
-// float currents[60] = { 0 }; //60 points per full sine wave
-
 
 unsigned long fpscount = 0;
 unsigned long t1 = 0;
@@ -311,7 +308,7 @@ void setDrillSpeed() {
         DrillStepper.setCurrentPosition(0); //resets internal accellstepper position tracker, ALSO sets speed to 0
         DrillStepper.setSpeed(0); //repetitive actually (see ^)
         if (cmds.drillMovementDirection == 1) { //moving down
-            DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection); //sets drill vertical speed
+            DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection * mmPerSec_to_stepsPerSec); //sets drill vertical speed
         }
     }
     else {
@@ -323,7 +320,7 @@ void setDrillSpeed() {
             DrillStepper.setSpeed(PIDspeedCmd);
         }
         else {
-            DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection);
+            DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection * mmPerSec_to_stepsPerSec);
         }
     }
 }
