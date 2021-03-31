@@ -66,7 +66,7 @@ HX711_ADC LoadCell(HX711_data_1, HX711_clck_1); // Module 1 for drilling system
 unsigned long currTime           = 0;
 unsigned long prevTime           = 0;
 // const    unsigned long checkRate = 20;     //ms
-const    unsigned long sendRate  = 100;    //ms
+const    unsigned long sendRate  = 10;    //ms
 bool     incomingStringComplete  = false;  // whether the string is complete
 int      currPosOfChar           = 0;
 
@@ -125,7 +125,7 @@ void setup() {
 
 
 void loop() {
-    // fpsCounter();
+    fpsCounter();
     checkRelayCmds();
     checkLoadCellTare();
     // checkLimitSwitches(); //can't bc not tied low (will bounce around if not actually connected)
@@ -156,7 +156,7 @@ void loop() {
 
 void sendDataOut() {
     //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive] ... update as needed
-    drillPos = DrillStepper.currentPosition();
+    drillPos = DrillStepper.currentPosition() * drillStepperRatio; //to get mm
     mirageAngle = MirageStepper.currentPosition();
     Serial.print(WOB, 2);
     Serial.print(",");

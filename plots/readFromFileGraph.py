@@ -9,7 +9,7 @@ pg.setConfigOption('background', (13, 0.00, 50))
 pg.setConfigOption('foreground', 'w')
 win = pg.GraphicsLayoutWidget(show=True)
 win.setWindowTitle('AARC Telem')
-fName = './logs/lineSize.txt'
+fName = './logs/run1.txt'
 dataArray = []
 timeArray = []
 y1Array = []
@@ -46,7 +46,7 @@ def update_WOB1():
     global ptr_WOB
     readLastLine()
     ptr_WOB += 1
-    curve_WOB.setData(x=timeArray[-200:], y=y1Array[-200:])
+    curve_WOB.setData(x=timeArray[-100:], y=y1Array[-100:])
     curve_WOB.setPos(ptr_WOB, 0)
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -196,7 +196,7 @@ def loadAllPreviousValues():  # returns an array of all data in file
 
 timer = pg.QtCore.QTimer()
 timer.timeout.connect(update)
-timer.start(1000)  # ms
+timer.start(100)  # ms
 
 # Start Qt event loop unless running in interactive mode or using pyside.
 if __name__ == '__main__':

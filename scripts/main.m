@@ -12,7 +12,7 @@ serialPort = serialport("COM3", 115200);
 configureTerminator(serialPort,"LF"); %sets newline as line ending
 flush(serialPort); %so that data doesnt get clogged/backed up
 configureCallback(serialPort,"terminator",@readSerialData)
-fileID = fopen("../logs/secondLog.txt", 'a'); %appends to end of file, or creates file and writes to it
+fileID = fopen("../logs/run1.txt", 'a'); %appends to end of file, or creates file and writes to it
 % hWaitbar = waitbar(0, 'Running...', 'Name', 'AARC','CreateCancelBtn','delete(gcbf)');
 changed = false;
 changedTimer = tic;
@@ -20,7 +20,7 @@ count = 0;
 
 while(running)
     try
-        if (toc(changedTimer) > 0.1) %sets a send rate
+        if (toc(changedTimer) > 0.02) %sets a send rate
             changed = true;
             changedTimer = tic;
         end
