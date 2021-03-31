@@ -74,13 +74,13 @@ char* myPointer;
 
 // float augerArea =  PI * (0.02)^2;
 float  WOB                = 0;
-float  targetWOB          = 100;  //Newtons
+float  targetWOB          = 50;  //Newtons
 float  WOBerror           = 0;    //pid
 float  WOBcumulativeError = 0;
 float  WOBrateError       = 0;
 float  WOBprevError       = 0;
 float  PIDspeedCmd        = 0;
-float  Kp                 = 0;
+float  Kp                 = 8;
 float  Kd                 = 0;
 float  Ki                 = 0;
 float  WOBcurrTime        = 0;
@@ -292,17 +292,17 @@ void checkLimitSwitches() {
         drillLimitSwitchActive = 0;
     }
 }
-// void setPIDcmd() {
-//     WOBcurrTime = millis();
-//     WOBelapsedTime = (float)(WOBcurrTime - WOBprevTime);
-//     WOBerror = targetWOB - WOB; //proportional
-//     WOBcumulativeError += WOBerror * WOBelapsedTime; //integral
-//     WOBrateError = (WOBerror - WOBprevError) / WOBelapsedTime; //deriv
-//     PIDspeedCmd = WOBerror * Kd + WOBcumulativeError * Ki + WOBrateError * Kd; //trial error for values
-//     PIDspeedCmd = constrain(PIDspeedCmd, 0, PIDstepperMaxSpeed); //clamps to PIDstepperMaxSpeed (steps/sec)
-//     WOBprevError = WOBerror;
-//     WOBprevTime = millis();
-// }
+void setPIDcmd() {
+    WOBcurrTime = micros();
+    WOBelapsedTime = (float)(WOBcurrTime - WOBprevTime);
+    WOBerror = targetWOB - WOB; //proportional
+    WOBcumulativeError += WOBerror * WOBelapsedTime * 1e6; //integral
+    WOBrateError = (WOBerror - WOBprevError) / (WOBelapsedTime * 1e6); //deriv
+    PIDspeedCmd = WOBerror * Kp + WOBcumulativeError * Ki + WOBrateError * Kd; //trial error for values
+    PIDspeedCmd = constrain(PIDspeedCmd, 0, PIDstepperMaxSpeed); //clamps to PIDstepperMaxSpeed (steps/sec)
+    WOBprevError = WOBerror;
+    WOBprevTime = micros();
+}
 void setDrillSpeed() {
     if (drillLimitSwitchActive == 1) { //limit switch reached
         DrillStepper.setCurrentPosition(0); //resets internal accellstepper position tracker, ALSO sets speed to 0
@@ -316,7 +316,7 @@ void setDrillSpeed() {
             DrillStepper.setSpeed(zeroingStepperMaxSpeed * -1); // moveup
         }
         else if (cmds.drillControlMode == 0) { //automatic/limit WOB/pid control mode
-            // setPIDcmd();
+            setPIDcmd();
             DrillStepper.setSpeed(PIDspeedCmd);
         }
         else {
@@ -339,7 +339,7 @@ void checkLoadCellTare() {
 void setupLoadCell() {
     // Define calibration values given by the calibration script
     float calval_LoadCell;
-    calval_LoadCell = -15000;
+    calval_LoadCell = -7500;
     LoadCell.begin();
     unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
     boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
