@@ -1,7 +1,7 @@
 #include "AccelStepper.h"
 #include <HX711_ADC.h> // Include ADC Libraries
 
-struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve]
+struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint]
     int drillControlMode; // 1 for manual rop control, 0 for automatic (pid)
     int drillMovementDirection; // 1 for down, 0 for stop, -1 for up
     double speed;
@@ -13,9 +13,10 @@ struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
     int tareCmd;
     int zeroCmd;
     int fakeZero;
+    int WOBsetpoint;
 };
 
-controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve]
+controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint]
     .drillControlMode = 1,
     .drillMovementDirection = 0,
     .speed = 0,
@@ -26,10 +27,11 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
     .drillCmd = 0,
     .tareCmd = 0,
     .zeroCmd = 0,
-    .fakeZero = 0
+    .fakeZero = 0,
+    .WOBsetpoint = 0
 };
 
-#define numCmds 11 //num of vars in struct above
+#define numCmds 12 //num of vars in struct above
 #define sizeOfCmd 100 //number of chars sent from matlab to arduino must be less than this
 #define limitSwitchPin 7
 #define AC_pin 999 //PWM pin for dimmer 
@@ -216,7 +218,7 @@ void formatIncomingData() {
     }
     // Serial.println("here: " + String(arrayOfcstring[1]));
 }
-void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd]
+void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint]
     //mode
     cmds.drillControlMode = atoi(arrayOfcstring[0]);
     //direction
@@ -240,7 +242,7 @@ void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heate
     // if (cmds.fakeZero == 1) drillLimitSwitchActive = 1;
     // else drillLimitSwitchActive = 0;
     cmds.drillCmd = atoi(arrayOfcstring[10]);
-
+    cmds.WOBsetpoint = atoi(arrayOfcstring[11]);
 }
 void doHousekeeping() {
     if (incomingStringComplete) {

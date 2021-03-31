@@ -66,7 +66,7 @@ function writeDataToFile(da, fid)
     fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6)); % Write to file  
 end
 
-function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd]
+function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint]
     drillCmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
@@ -78,10 +78,12 @@ function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, mirag
     zeroCmd = appHand.DrillZero_Cmd;
     fakeZero = appHand.FakeZero_Cmd;
     drillCmd = appHand.Drill_Cmd;
+    WOBsetpoint = appHand.WOBsetpoint;
     if (tare == 1)
         appHand.Tare_Cmd = 0; %reset tare to 0 in app
     end
-    returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," + rpm + "," + heater + "," + pump + "," + tare + "," + zeroCmd + "," + fakeZero + "," + drillCmd;
+    
+    returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," + rpm + "," + heater + "," + pump + "," + tare + "," + zeroCmd + "," + fakeZero + "," + drillCmd + "," + WOBsetpoint;
 end
 
 function readSerialData(src,~)
