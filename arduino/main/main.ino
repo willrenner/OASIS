@@ -1,5 +1,7 @@
 #include "AccelStepper.h"
 #include <HX711_ADC.h> // Include ADC Libraries
+#include <arduino-timer.h>
+
 
 struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint]
     int drillControlMode; // 1 for manual rop control, 0 for automatic (pid)
@@ -31,6 +33,7 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
     .WOBsetpoint = 0
 };
 
+
 #define numCmds 12 //num of vars in struct above
 #define sizeOfCmd 100 //number of chars sent from matlab to arduino must be less than this
 #define limitSwitchPin 7
@@ -44,6 +47,8 @@ const int HX711_clck_1 = 11;
 #define heaterRelayPin 6
 #define pumpRelayPin 5
 #define drillRelayPin 13
+#define currentSensorPin A0
+#define currentSensorRate 120
 #define sensor_interupt_pin 18 // interupt pin (On arduino Mega pins 2, 3, 18, 19, 20,& 21 can be used for interupts)
 #define stepsPerRev 200 // (per rev) steps/rev, 1.8deg/step
 #define leadScrewLead 8 // mm/rev
@@ -51,7 +56,6 @@ const int HX711_clck_1 = 11;
 #define mmPerSec_to_stepsPerSec 25 //mult mm/sec by this to get steps/sec
 #define PIDstepperMaxSpeed 50 //steps per sec
 #define zeroingStepperMaxSpeed 1000 //steps per sec
-
 
 unsigned long rotations         = 0;  
 int      min_RPM_rotations      = 5;
@@ -74,7 +78,9 @@ char cstring[sizeOfCmd];
 char* arrayOfcstring[numCmds];
 char* myPointer;
 
+
 // float augerArea =  PI * (0.02)^2;
+float  currentSensorValue = 0;
 float  WOB                = 0;
 float  targetWOB          = 50;  //Newtons
 float  WOBerror           = 0;    //pid
@@ -100,7 +106,10 @@ float    mirageAngle            = 0;  //degrees from start
 unsigned long fpscount = 0;
 unsigned long t1 = 0;
 unsigned long t2 = 0;
+auto timer = timer_create_default();
+
 void setup() {
+    timer.every(1/currentSensorRate * 1000, getCurrentSensorValue());
     pinMode(sensor_interupt_pin, INPUT);
     pinMode(limitSwitchPin, INPUT);
     pinMode(heaterRelayPin, OUTPUT);
@@ -125,6 +134,7 @@ void setup() {
 
 
 void loop() {
+    timer.tick();
     fpsCounter();
     checkRelayCmds();
     checkLoadCellTare();
@@ -373,30 +383,6 @@ void getdrillRPM() {
         start_time = micros(); // reassigns start time to a new value
     }
 }
-// possible control of dimmer module
-// void Drill_RPM() {
-//     if (Serial.available()) {
-//         dim = Serial.read();
-//         if (dim < 1) {
-//             //Turn TRIAC completely OFF if dim is 0
-//             digitalWrite(AC_pin, LOW);
-//         }
-//         if (dim > 254) { //Turn TRIAC completely ON if dim is 255
-//             digitalWrite(AC_pin, HIGH);
-//         }
-//     }
-//     if (dim > 0 && dim < 255) {
-//         //Dimming part, if dim is not 0 and not 255
-//         delayMicroseconds(34 * (255 - dim));
-//         digitalWrite(AC_pin, HIGH);
-//         delayMicroseconds(500);
-//         digitalWrite(AC_pin, LOW);
-//     }
-// }
-
-// #define ZeroCrPin   2// interrupt 0
-// volatile unsigned long zcUsec = 0;  // must be set to volatile when used within an interrupt.
-// attachInterrupt(0, [] {zcUsec = micros()}, FALLING); // used an anonomous function (lambda funciton) to set zcUsec to micros()
 
 void fpsCounter() {
     t1 = millis();
@@ -412,4 +398,9 @@ void fpsCounter() {
 
 void getdrillVoltageCurrent() {
 
+}
+void getCurrentSensorValue() {
+    float val = -0.04757 * analogRead(currentSensorPin) + 24.36; //eqn to get amperage, y = mx + b by testing
+    val = sqrt(pow(val, 2) + pow(drillCurrent, 2)); //kinda RMS not really, may not even work who knows
+    drillCurrent = 0.1*val + 0.9*drillCurrent; //complementary filter
 }
