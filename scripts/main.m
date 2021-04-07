@@ -8,7 +8,7 @@ global running;
 running = true;
 % addpath('../../app'); %to be able to run next line to open app
 appHandle = arduinoApp;
-serialPort = serialport("COM3", 115200);
+serialPort = serialport("COM4", 115200);
 configureTerminator(serialPort,"LF"); %sets newline as line ending
 flush(serialPort); %so that data doesnt get clogged/backed up
 configureCallback(serialPort,"terminator",@readSerialData)
@@ -20,7 +20,7 @@ count = 0;
 
 while(running)
     try
-        if (toc(changedTimer) > 0.02) %sets a send rate
+        if (toc(changedTimer) > 0.1) %sets a send rate
             changed = true;
             changedTimer = tic;
         end
@@ -60,10 +60,11 @@ clear all;
 
 
 function writeDataToFile(da, fid)
+    
     t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
     p = posixtime(t);
-%   [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive]
-    fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6)); % Write to file  
+%   [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE]
+    fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6),da(7)); % Write to file  
 end
 
 function returnVal = getValuesFromApp(appHand) %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint]
@@ -100,7 +101,7 @@ function setAppData(appHandle, dataArray)
     drillPos = round(str2double(dataArray(4)), 2);
     mirageAngle = round(str2double(dataArray(5)), 2);
     limitSwitchReached = str2double(dataArray(6));
-
+    
     %-----send to app-----
     appHandle.WOBNEditField.Value = WOB;
     appHandle.DrillRPMEditField.Value = drillRPM;

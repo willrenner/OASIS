@@ -18,6 +18,7 @@ y3Array = []
 y4Array = []
 y5Array = []
 y6Array = []
+y7Array = []
 
 TS_MULT_us = 1e6
 
@@ -128,10 +129,26 @@ plot_DrillCurrent.setClipToView(True)
 plot_DrillCurrent.setMouseEnabled(y=False)
 curve_DrillCurrent = plot_DrillCurrent.plot(pen=pg.mkPen('w', width=3))
 
-
 def update_DrillCurrent():
     curve_DrillCurrent.setData(x=timeArray, y=y3Array)
+
+
 # ---------------------------------------------------------------------------------------------------------------
+tai_MSE = TimeAxisItem(orientation='bottom')
+tai_MSE.enableAutoSIPrefix(enable=False)
+plot_MSE = win.addPlot(row=3, col=1, labels={'left': "MSE (pa) "}, axisItems={
+    'bottom': tai_MSE}, title="MSE (enitre history)")
+# Use automatic downsampling and clipping to reduce the drawing load
+plot_MSE.setDownsampling(mode='peak')
+plot_MSE.setClipToView(True)
+plot_MSE.setMouseEnabled(y=False)
+curve_MSE = plot_MSE.plot(pen=pg.mkPen('w', width=3))
+
+
+def update_MSE():
+    curve_MSE.setData(x=timeArray, y=y7Array)
+# ---------------------------------------------------------------------------------------------------------------
+
 
 def readLastLine():  # actually gets second to last line b/c last line might not be finished from matlab
     with open(fName, "rb") as file:  # binary mode, must do this to start at end of file
@@ -153,6 +170,7 @@ def readLastLine():  # actually gets second to last line b/c last line might not
         y4Array.append(float(dataArray[4]))
         y5Array.append(float(dataArray[5]))
         y6Array.append(float(dataArray[6]))
+        y7Array.append(float(dataArray[7]))
 
 
 
@@ -165,6 +183,7 @@ def update():
     update_MirageAngle()
     update_LimSwitch()
     update_DrillCurrent()
+    update_MSE()
 
 def getLineCount():
     count = 0

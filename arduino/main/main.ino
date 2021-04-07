@@ -49,7 +49,7 @@ const int HX711_clck_1 = 11;
 #define drillRelayPin 13
 #define currentSensorPin A0
 #define currentSensorRate 120
-#define sensor_interupt_pin 18 // interupt pin (On arduino Mega pins 2, 3, 18, 19, 20,& 21 can be used for interupts)
+#define RPMsensor_interupt_pin 18 // interupt pin (On arduino Mega pins 2, 3, 18, 19, 20,& 21 can be used for interupts)
 #define stepsPerRev 200 // (per rev) steps/rev, 1.8deg/step
 #define leadScrewLead 8 // mm/rev
 #define drillStepperMaxSpeed 1000 //steps per sec, over 1000 makes setSpeed() unreliable says doc.  (1875 is max per the linear rail, 4000 per the stepper motor)
@@ -70,7 +70,7 @@ HX711_ADC LoadCell(HX711_data_1, HX711_clck_1); // Module 1 for drilling system
 unsigned long currTime           = 0;
 unsigned long prevTime           = 0;
 // const    unsigned long checkRate = 20;     //ms
-const    unsigned long sendRate  = 10;    //ms
+const    unsigned long sendRate  = 100;    //ms
 bool     incomingStringComplete  = false;  // whether the string is complete
 int      currPosOfChar           = 0;
 
@@ -78,8 +78,13 @@ char cstring[sizeOfCmd];
 char* arrayOfcstring[numCmds];
 char* myPointer;
 
+//Amp array
+#define ampArraySize 20
+float ampArray[ampArraySize];
+int ampCounter = 0;
 
-// float augerArea =  PI * (0.02)^2;
+float MSE = 0;
+float augerArea = PI * pow(0.04, 2);
 float  currentSensorValue = 0;
 float  WOB                = 0;
 float  targetWOB          = 50;  //Newtons
@@ -106,21 +111,19 @@ float    mirageAngle            = 0;  //degrees from start
 unsigned long fpscount = 0;
 unsigned long t1 = 0;
 unsigned long t2 = 0;
-auto timer = timer_create_default();
+auto amptimer = timer_create_default();
+auto WOBtimer = timer_create_default();
 
+//
 void setup() {
-    timer.every(1/currentSensorRate * 1000, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
-    pinMode(sensor_interupt_pin, INPUT);
+    amptimer.every(((float)1 / currentSensorRate) * 1000, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
+    WOBtimer.every(50, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
+
+    pinMode(RPMsensor_interupt_pin, INPUT);
     pinMode(limitSwitchPin, INPUT);
     pinMode(heaterRelayPin, OUTPUT);
     pinMode(pumpRelayPin, OUTPUT);
-    attachInterrupt(digitalPinToInterrupt(sensor_interupt_pin), addValue, RISING);
-
-    Serial.begin(115200);
-    while (!Serial) {
-        ; // wait for serial port to connect. Needed for native USB port only
-    }
-    Serial.flush();
+    attachInterrupt(digitalPinToInterrupt(RPMsensor_interupt_pin), addValue, RISING);
 
     // pinMode(AC_pin, OUTPUT);
     // attachInterrupt(0, Drill_RPM, FALLING); //actuator when pin is falling high to low to form square wave
@@ -130,31 +133,29 @@ void setup() {
     DrillStepper.setMaxSpeed(drillStepperMaxSpeed);
     MirageStepper.setMaxSpeed(400); // Steps per second
     MirageStepper.setAcceleration(50); //Steps/sec^2
+
+    Serial.begin(115200);
+    while (!Serial) {
+        ; // wait for serial port to connect. Needed for native USB port only
+    }
+    Serial.flush();
 }
 
 
 void loop() {
-    timer.tick();
+    amptimer.tick();
+    WOBtimer.tick();
+
     fpsCounter();
     checkRelayCmds();
     checkLoadCellTare();
-    // checkLimitSwitches(); //can't bc not tied low (will bounce around if not actually connected)
-    if (LoadCell.update()) WOB = LoadCell.getData();
+//  checkLimitSwitches(); //can't bc not tied low (will bounce around if not actually connected)
     getdrillRPM();
-    // getdrillVoltageCurrent();
+    getMSE();
     setDrillSpeed();
-    setMiragePosition();
-
-
-    // DrillStepper.setSpeed(cmds.speed * cmds.drillMovementDirection);
-    // Serial.print("speed: ");
-    // Serial.print(cmds.speed * cmds.drillMovementDirection);
-    // Serial.print("      pos: ");
-    // Serial.println(DrillStepper.currentPosition());
-
+    setMiragePosition();    
     MirageStepper.run();
-    DrillStepper.runSpeed();
-
+    DrillStepper.runSpeed();    
     doHousekeeping();
 }
 
@@ -165,7 +166,7 @@ void loop() {
 */
 
 void sendDataOut() {
-    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive] ... update as needed
+    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE] ... update as needed
     drillPos = DrillStepper.currentPosition() * drillStepperRatio; //to get mm
     mirageAngle = MirageStepper.currentPosition();
     Serial.print(WOB, 2);
@@ -179,6 +180,8 @@ void sendDataOut() {
     Serial.print(mirageAngle, 2);
     Serial.print(",");
     Serial.print(drillLimitSwitchActive, DEC);
+    Serial.print(",");
+    Serial.print(MSE, 2);
     Serial.print(",");
     //sanity check from matlab below
     //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
@@ -289,10 +292,9 @@ void checkRelayCmds() {
 }
 
 void getMSE() {
-    // float drillTorque = getDrillTorque();
-    // float drillRPM = getDrillRPM();
-    // float ROP = cmds.speed;
-    // float MSE = WOB/augerArea + drillTorque*drillRPM/(augerArea*ROP); //MSE equation
+    float ROP = cmds.speed / 1000; //m/sec
+    if (ROP < 0.0001) ROP = 0.0001;
+    MSE = WOB/augerArea + drillCurrent*drillRPM/(augerArea*ROP); //MSE equation, assuming torque is proportional to current
 }
 
 void checkLimitSwitches() {
@@ -396,12 +398,21 @@ void fpsCounter() {
     }
 }
 
-void getdrillVoltageCurrent() {
-
-}
 bool getCurrentSensorValue(void*) { //analog read is slow
     float val = -0.04757 * analogRead(currentSensorPin) + 24.36; //eqn to get amperage, y = mx + b by testing
-    val = sqrt(pow(val, 2) + pow(drillCurrent, 2)); //kinda RMS not really, may not even work who knows
-    drillCurrent = 0.1*val + 0.9*drillCurrent; //complementary filter
+    val = random(0,4);
+    if (ampCounter >= ampArraySize) ampCounter = 0; //loop back to start of array, essentially keep the last ampArraySize number of values
+    ampArray[ampCounter] = val;
+    ampCounter++;
+    float sumOfSquares = 0;
+    for(int i=0; i < ampArraySize; i++){
+        sumOfSquares += pow(ampArray[i],2);
+    }
+    float RMScurrentVal = sqrt(sumOfSquares); //this rms value of last 10 moving measurements
+    drillCurrent = 0.1*drillCurrent + 0.9*RMScurrentVal; //filter the values with complementary filter
+    return true;
+}
+bool getWOB(void*) {
+    if (LoadCell.update()) WOB = LoadCell.getData(); //this is slow culprit
     return true;
 }
