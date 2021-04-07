@@ -109,7 +109,7 @@ unsigned long t2 = 0;
 auto timer = timer_create_default();
 
 void setup() {
-    timer.every(1/currentSensorRate * 1000, getCurrentSensorValue());
+    timer.every(1/currentSensorRate * 1000, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
     pinMode(sensor_interupt_pin, INPUT);
     pinMode(limitSwitchPin, INPUT);
     pinMode(heaterRelayPin, OUTPUT);
@@ -399,7 +399,7 @@ void fpsCounter() {
 void getdrillVoltageCurrent() {
 
 }
-bool getCurrentSensorValue() {
+bool getCurrentSensorValue(void*) { //analog read is slow
     float val = -0.04757 * analogRead(currentSensorPin) + 24.36; //eqn to get amperage, y = mx + b by testing
     val = sqrt(pow(val, 2) + pow(drillCurrent, 2)); //kinda RMS not really, may not even work who knows
     drillCurrent = 0.1*val + 0.9*drillCurrent; //complementary filter
