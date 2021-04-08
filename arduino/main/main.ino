@@ -48,6 +48,8 @@ const int HX711_clck_1 = 11;
 #define pumpRelayPin 5
 #define drillRelayPin 13
 #define currentSensorPin A0
+#define thermocouplePin A1
+
 #define currentSensorRate 120
 #define RPMsensor_interupt_pin 18 // interupt pin (On arduino Mega pins 2, 3, 18, 19, 20,& 21 can be used for interupts)
 #define stepsPerRev 200 // (per rev) steps/rev, 1.8deg/step
@@ -99,6 +101,11 @@ float  Ki                 = 0;
 float  WOBcurrTime        = 0;
 float  WOBprevTime        = 0;
 double WOBelapsedTime     = 0;
+
+float heaterTemperature = 0;
+float heaterTemperatureError = 0;
+float heaterTemperatureSetpoint = 150; //degrees C
+float heaterKp = 0;
 
 int      drillLimitSwitchActive = 0;  //1 for active
 // unsigned long checkTime         = 0;
@@ -154,6 +161,7 @@ void loop() {
     getMSE();
     setDrillSpeed();
     setMiragePosition();    
+    setHeaterPower();
     MirageStepper.run();
     DrillStepper.runSpeed();    
     doHousekeeping();
@@ -415,4 +423,9 @@ bool getCurrentSensorValue(void*) { //analog read is slow
 bool getWOB(void*) {
     if (LoadCell.update()) WOB = LoadCell.getData(); //this is slow culprit
     return true;
+}
+void setHeaterPower() {
+    heaterTemperature = 0;
+    heaterTemperatureError = heaterTemperatureSetpoint - heaterTemperature;
+    
 }
