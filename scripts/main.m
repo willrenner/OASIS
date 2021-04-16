@@ -30,13 +30,13 @@ while(running)
             changed = false;
         end
         if (dataRecieved)
-            %indecies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive] ... update as needed
+            %indecies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE, heaterTemp,heaterPower] ... update as needed
             dataArray = strsplit(data, ',');
             sizeOfArr = size(dataArray);
             if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
-                fprintf("WOB: %3.2f, RPM: %7.2f, Current: %2.2f, Z-Pos: %6.2f, Mir-Ang: %7.2f, Lim-Sw: %2.0f --- ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5), dataArray(6));
-%               [drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
-                fprintf("CmdMode: %2.0f, DirectionCmd: %2.0f, SpeedCmd: %7.2f, MirageAngleCmd: %7.2f, RPM_Cmd: %7.2f, HeaterCmd: %2.0f, PumpCmd: %2.0f, TareCmd: %2.0f, DrillCmd: %2.0f\n",dataArray(7),dataArray(8),dataArray(9),dataArray(10),dataArray(11), dataArray(12), dataArray(13), dataArray(14), dataArray(15));
+                fprintf("WOB: %3.2f, RPM: %7.2f, Current: %2.2f, Z-Pos: %6.2f, Mir-Ang: %7.2f, Lim-Sw: %2.0f, MSE: %2.0f, heaterTemp: %2.0f, heaterPower: %2.0f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5), dataArray(6), dataArray(7), dataArray(8), dataArray(8));
+                %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
+                %fprintf("CmdMode: %2.0f, DirectionCmd: %2.0f, SpeedCmd: %7.2f, MirageAngleCmd: %7.2f, RPM_Cmd: %7.2f, HeaterCmd: %2.0f, PumpCmd: %2.0f, TareCmd: %2.0f, DrillCmd: %2.0f\n",dataArray(7),dataArray(8),dataArray(9),dataArray(10),dataArray(11), dataArray(12), dataArray(13), dataArray(14), dataArray(15));
                 setAppData(appHandle, dataArray); %change data in app
                 writeDataToFile(dataArray, fileID) %log to file
             else %meaning Serial debug statment, and not data array
@@ -83,13 +83,13 @@ function returnVal = getValuesFromApp(appHand)
     fakeZero = appHand.FakeZero_Cmd;
     drillCmd = appHand.Drill_Cmd;
     WOBsetpoint = appHand.WOBsetpoint;
-    Kp_Drill = app.KpSpinner.Value;
-    Ki_Drill = app.KiSpinner.Value;
-    Kd_Drill = app.KdSpinner.Value;
-    Kp_Heater = app.KpSpinner_2.Value;
-    Ki_Heater = app.KiSpinner_2.Value;
-    Kd_Heater = app.KdSpinner_2.Value;
-    TemperatureSetpoint = app.TemperatureSetpointCSpinner.Value;
+    Kp_Drill = appHand.Kp_Drill;
+    Ki_Drill = appHand.Ki_Drill;
+    Kd_Drill = appHand.Kd_Drill;
+    Kp_Heater = appHand.Kp_Heater;
+    Ki_Heater = appHand.Ki_Heater;
+    Kd_Heater = appHand.Kd_Heater;
+    TemperatureSetpoint = appHand.TemperatureSetpoint;
     
     if (tare == 1)
         appHand.Tare_Cmd = 0; %reset tare to 0 in app

@@ -176,7 +176,6 @@ void loop() {
     getMSE();
     setDrillSpeed();
     setMiragePosition();    
-    setHeaterPower();
     MirageStepper.run();
     DrillStepper.runSpeed();    
     doHousekeeping();
@@ -213,23 +212,23 @@ void sendDataOut() {
     //sanity check from matlab below
     //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
 
-    Serial.print(cmds.drillControlMode, DEC); //formated as int
-    Serial.print(",");
-    Serial.print(cmds.drillMovementDirection, DEC); //formated as int
-    Serial.print(",");
-    Serial.print(cmds.speed, 2); //formated as float to 2 decials
-    Serial.print(",");
-    Serial.print(cmds.miragePositionCmd, DEC); //formated as int
-    Serial.print(",");
-    Serial.print(cmds.Drill_RPM, DEC); //formated as int
-    Serial.print(",");
-    Serial.print(cmds.heaterCmd, DEC); //formated as int
-    Serial.print(",");
-    Serial.print(cmds.pumpCmd, DEC); //formated as int
-    Serial.print(",");
-    Serial.print(cmds.tareCmd, DEC); //formated as int
-    Serial.print(",");
-    Serial.print(cmds.drillCmd, DEC); //formated as int
+    // Serial.print(cmds.drillControlMode, DEC); //formated as int
+    // Serial.print(",");
+    // Serial.print(cmds.drillMovementDirection, DEC); //formated as int
+    // Serial.print(",");
+    // Serial.print(cmds.speed, 2); //formated as float to 2 decials
+    // Serial.print(",");
+    // Serial.print(cmds.miragePositionCmd, DEC); //formated as int
+    // Serial.print(",");
+    // Serial.print(cmds.Drill_RPM, DEC); //formated as int
+    // Serial.print(",");
+    // Serial.print(cmds.heaterCmd, DEC); //formated as int
+    // Serial.print(",");
+    // Serial.print(cmds.pumpCmd, DEC); //formated as int
+    // Serial.print(",");
+    // Serial.print(cmds.tareCmd, DEC); //formated as int
+    // Serial.print(",");
+    // Serial.print(cmds.drillCmd, DEC); //formated as int
     Serial.print("\n"); //serial terminator
 }
 void serialEvent() {
@@ -412,12 +411,12 @@ void setupLoadCell() {
     LoadCell.setCalFactor(calval_LoadCell);
     Serial.println("Load Cell startup is complete");
 }
-void setupThermcouple() {
+void setupThermocouple() {
     if (!thermocouple.begin()) {
-        Serial.println("Setting up thermocouple")
+        Serial.println("Setting up thermocouple");
         while (1) delay(10);
     }
-    Serial.println("Thermcouple setup complete!")
+    Serial.println("Thermcouple setup complete!");
     Serial.print("Int. Temp = ");
     Serial.println(thermocouple.readInternal());
 }
@@ -450,7 +449,7 @@ void fpsCounter() {
 bool getCurrentSensorValue(void*) { //analog read is slow
     //idk if any of this works
     float val = -0.04757 * analogRead(currentSensorPin) + 24.36; //eqn to get amperage, y = mx + b by testing
-    val = random(0,4);
+    // val = random(0,4);
     if (ampCounter >= ampArraySize) ampCounter = 0; //loop back to start of array, essentially keep the last ampArraySize number of values
     ampArray[ampCounter] = val;
     ampCounter++;
@@ -468,8 +467,8 @@ bool getWOB(void*) {
 }
 bool setHeaterPower(void*) {
     heaterTemperature = (float)thermocouple.readCelsius();
-    if (isnan(c)) {
-        Serial.println("ERROR: Thermcouple temperature NAN!")
+    if (isnan(heaterTemperature)) {
+        Serial.println("ERROR: Thermcouple temperature NAN!");
     }
     else {
         heaterTemperatureError = cmds.TemperatureSetpoint - heaterTemperature;
