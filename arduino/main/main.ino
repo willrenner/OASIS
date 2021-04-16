@@ -1,6 +1,8 @@
-#include "AccelStepper.h"
+#include <AccelStepper.h>
 #include <HX711_ADC.h> // Include ADC Libraries
 #include <arduino-timer.h>
+#include <Adafruit_MAX31855.h>
+
 
 
 struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint]
@@ -16,6 +18,13 @@ struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
     int zeroCmd;
     int fakeZero;
     int WOBsetpoint;
+    int Kp_Drill;
+    int Ki_Drill;
+    int Kd_Drill;
+    int Kp_Heater;
+    int Ki_Heater;
+    int Kd_Heater;
+    int TemperatureSetpoint;
 };
 
 controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint]
@@ -34,8 +43,8 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
 };
 
 
-#define numCmds 12 //num of vars in struct above
-#define sizeOfCmd 100 //number of chars sent from matlab to arduino must be less than this
+#define numCmds 19 //num of vars in struct above
+#define sizeOfCmd 150 //number of chars sent from matlab to arduino must be less than this
 #define limitSwitchPin 7
 #define AC_pin 999 //PWM pin for dimmer 
 #define drillStepPin 2
@@ -48,7 +57,10 @@ const int HX711_clck_1 = 11;
 #define pumpRelayPin 5
 #define drillRelayPin 13
 #define currentSensorPin A0
-#define thermocouplePin A1
+#define thermocoupleCLK 14
+#define thermocoupleDO 15
+#define thermocoupleCS 16
+#define heaterModulePin A1
 
 #define currentSensorRate 120
 #define RPMsensor_interupt_pin 18 // interupt pin (On arduino Mega pins 2, 3, 18, 19, 20,& 21 can be used for interupts)
@@ -68,6 +80,8 @@ float drillStepperRatio = leadScrewLead / stepsPerRev; //multiply by currentStep
 AccelStepper DrillStepper(1, drillStepPin, drillDirPin); //driver, step, dir pin
 AccelStepper MirageStepper(1, mirageStepPin, mirageDirPin);
 HX711_ADC LoadCell(HX711_data_1, HX711_clck_1); // Module 1 for drilling system
+Adafruit_MAX31855 thermocouple(thermocoupleCLK, thermocoupleCS, thermocoupleDO);
+
 
 unsigned long currTime           = 0;
 unsigned long prevTime           = 0;
@@ -95,9 +109,7 @@ float  WOBcumulativeError = 0;
 float  WOBrateError       = 0;
 float  WOBprevError       = 0;
 float  PIDspeedCmd        = 0;
-float  Kp                 = 8;
-float  Kd                 = 0;
-float  Ki                 = 0;
+
 float  WOBcurrTime        = 0;
 float  WOBprevTime        = 0;
 double WOBelapsedTime     = 0;
@@ -106,6 +118,7 @@ float heaterTemperature = 0;
 float heaterTemperatureError = 0;
 float heaterTemperatureSetpoint = 150; //degrees C
 float heaterKp = 0;
+float heaterPower = 0;
 
 int      drillLimitSwitchActive = 0;  //1 for active
 // unsigned long checkTime         = 0;
@@ -120,11 +133,12 @@ unsigned long t1 = 0;
 unsigned long t2 = 0;
 auto amptimer = timer_create_default();
 auto WOBtimer = timer_create_default();
-
+auto heatertimer = timer_create_default();
 //
 void setup() {
     amptimer.every(((float)1 / currentSensorRate) * 1000, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
     WOBtimer.every(50, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
+    heatertimer.every(50, setHeaterPower);
 
     pinMode(RPMsensor_interupt_pin, INPUT);
     pinMode(limitSwitchPin, INPUT);
@@ -136,6 +150,7 @@ void setup() {
     // attachInterrupt(0, Drill_RPM, FALLING); //actuator when pin is falling high to low to form square wave
 
     setupLoadCell();
+    setupThermocouple();
 
     DrillStepper.setMaxSpeed(drillStepperMaxSpeed);
     MirageStepper.setMaxSpeed(400); // Steps per second
@@ -174,7 +189,7 @@ void loop() {
 */
 
 void sendDataOut() {
-    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE] ... update as needed
+    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE, heaterTemp,heaterPower] ... update as needed
     drillPos = DrillStepper.currentPosition() * drillStepperRatio; //to get mm
     mirageAngle = MirageStepper.currentPosition();
     Serial.print(WOB, 2);
@@ -190,6 +205,10 @@ void sendDataOut() {
     Serial.print(drillLimitSwitchActive, DEC);
     Serial.print(",");
     Serial.print(MSE, 2);
+    Serial.print(",");
+    Serial.print(heaterTemperature, 2);
+    Serial.print(",");
+    Serial.print(heaterPower, 2);
     Serial.print(",");
     //sanity check from matlab below
     //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
@@ -239,7 +258,10 @@ void formatIncomingData() {
     }
     // Serial.println("here: " + String(arrayOfcstring[1]));
 }
-void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint]
+void buildDataStruct() { 
+    // [drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare,
+    // zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill, 
+    // Kd_Drill, Kp_Heater, Ki_Heater, Kd_Heater, TemperatureSetpoint]
     //mode
     cmds.drillControlMode = atoi(arrayOfcstring[0]);
     //direction
@@ -264,6 +286,16 @@ void buildDataStruct() { //[drillCmdMode, dir, speed, miragePosition, rpm, heate
     // else drillLimitSwitchActive = 0;
     cmds.drillCmd = atoi(arrayOfcstring[10]);
     cmds.WOBsetpoint = atoi(arrayOfcstring[11]);
+    cmds.Kp_Drill = atoi(arrayOfcstring[12]);
+    cmds.Ki_Drill = atoi(arrayOfcstring[13]);
+    cmds.Kd_Drill = atoi(arrayOfcstring[14]);
+    cmds.Kp_Heater = atoi(arrayOfcstring[15]);
+    cmds.Ki_Heater = atoi(arrayOfcstring[16]);
+    cmds.Kd_Heater = atoi(arrayOfcstring[17]);
+    cmds.TemperatureSetpoint = atoi(arrayOfcstring[18]);
+
+
+
 }
 void doHousekeeping() {
     if (incomingStringComplete) {
@@ -314,13 +346,13 @@ void checkLimitSwitches() {
         drillLimitSwitchActive = 0;
     }
 }
-void setPIDcmd() {
+void setROP() {
     WOBcurrTime = micros();
     WOBelapsedTime = (float)(WOBcurrTime - WOBprevTime);
-    WOBerror = targetWOB - WOB; //proportional
+    WOBerror = cmds.WOBsetpoint - WOB; //proportional
     WOBcumulativeError += WOBerror * WOBelapsedTime * 1e6; //integral
     WOBrateError = (WOBerror - WOBprevError) / (WOBelapsedTime * 1e6); //deriv
-    PIDspeedCmd = WOBerror * Kp + WOBcumulativeError * Ki + WOBrateError * Kd; //trial error for values
+    PIDspeedCmd = WOBerror * cmds.Kp_Drill + WOBcumulativeError * cmds.Ki_Drill + WOBrateError * cmds.Kd_Drill; //trial error for values
     PIDspeedCmd = constrain(PIDspeedCmd, 0, PIDstepperMaxSpeed); //clamps to PIDstepperMaxSpeed (steps/sec)
     WOBprevError = WOBerror;
     WOBprevTime = micros();
@@ -338,7 +370,7 @@ void setDrillSpeed() {
             DrillStepper.setSpeed(zeroingStepperMaxSpeed * -1); // moveup
         }
         else if (cmds.drillControlMode == 0) { //automatic/limit WOB/pid control mode
-            setPIDcmd();
+            setROP();
             DrillStepper.setSpeed(PIDspeedCmd);
         }
         else {
@@ -380,6 +412,15 @@ void setupLoadCell() {
     LoadCell.setCalFactor(calval_LoadCell);
     Serial.println("Load Cell startup is complete");
 }
+void setupThermcouple() {
+    if (!thermocouple.begin()) {
+        Serial.println("Setting up thermocouple")
+        while (1) delay(10);
+    }
+    Serial.println("Thermcouple setup complete!")
+    Serial.print("Int. Temp = ");
+    Serial.println(thermocouple.readInternal());
+}
 
 void addValue() {
     rotations++; // counts
@@ -407,6 +448,7 @@ void fpsCounter() {
 }
 
 bool getCurrentSensorValue(void*) { //analog read is slow
+    //idk if any of this works
     float val = -0.04757 * analogRead(currentSensorPin) + 24.36; //eqn to get amperage, y = mx + b by testing
     val = random(0,4);
     if (ampCounter >= ampArraySize) ampCounter = 0; //loop back to start of array, essentially keep the last ampArraySize number of values
@@ -424,8 +466,18 @@ bool getWOB(void*) {
     if (LoadCell.update()) WOB = LoadCell.getData(); //this is slow culprit
     return true;
 }
-void setHeaterPower() {
-    heaterTemperature = 0;
-    heaterTemperatureError = heaterTemperatureSetpoint - heaterTemperature;
-    
+bool setHeaterPower(void*) {
+    heaterTemperature = (float)thermocouple.readCelsius();
+    if (isnan(c)) {
+        Serial.println("ERROR: Thermcouple temperature NAN!")
+    }
+    else {
+        heaterTemperatureError = cmds.TemperatureSetpoint - heaterTemperature;
+        heaterPower = heaterTemperatureError * cmds.Kp_Heater;
+        if (heaterPower < 0) heaterPower = 0; //turn off heater
+        analogWrite(heaterModulePin, heaterPower);
+        // Serial.print("heater power: ");
+        // Serial.println(heaterPower, 2);
+    }
+    return true;
 }
