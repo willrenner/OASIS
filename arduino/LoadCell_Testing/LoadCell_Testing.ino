@@ -26,14 +26,14 @@ HX711_ADC LoadCell(HX711_data_1, HX711_clck_1); // Module 1 for drilling system
 unsigned long t = 0;
 
 void setup() {
-  Serial.begin(57600);
+  Serial.begin(115200);
   Serial.println();
   Serial.println("Starting...");
 
   float calval_LoadCell;
 
   // Define calibration values given by the calibration script
-  calval_LoadCell = 100;
+  calval_LoadCell = -7500;
 
   LoadCell.begin();
   unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
