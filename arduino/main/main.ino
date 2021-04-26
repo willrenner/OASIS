@@ -57,9 +57,9 @@ const int HX711_clck_1 = 11;
 #define pumpRelayPin 5
 #define drillRelayPin 13
 #define currentSensorPin A0
-#define thermocoupleCLK 14
-#define thermocoupleDO 15
-#define thermocoupleCS 16
+#define thermocoupleCLK 35
+#define thermocoupleDO 31
+#define thermocoupleCS 33
 #define heaterModulePin A1
 
 #define currentSensorRate 120
@@ -467,6 +467,9 @@ bool getWOB(void*) {
 }
 bool setHeaterPower(void*) {
     heaterTemperature = (float)thermocouple.readCelsius();
+    Serial.print("Heater temp: ");
+    Serial.println((float)thermocouple.readInternal(), 2);
+
     if (isnan(heaterTemperature)) {
         Serial.println("ERROR: Thermcouple temperature NAN!");
     }
