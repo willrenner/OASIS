@@ -8,7 +8,7 @@ global running;
 running = true;
 % addpath('../../app'); %to be able to run next line to open app
 appHandle = arduinoApp;
-serialPort = serialport("COM4", 115200);
+serialPort = serialport("COM3", 115200);
 configureTerminator(serialPort,"LF"); %sets newline as line ending
 flush(serialPort); %so that data doesnt get clogged/backed up
 configureCallback(serialPort,"terminator",@readSerialData)
@@ -69,8 +69,10 @@ end
 
 function returnVal = getValuesFromApp(appHand) 
     %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare,
-    %...
-    %zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill, Kd_Drill, Kp_Heater, Ki_Heater,Kd_Heater, TemperatureSetpoint]
+    %zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill,
+    %Kd_Drill, Kp_Heater, Ki_Heater,Kd_Heater, TemperatureSetpoint,
+    %HeaterPowerSetpoint, Extraction_ROP_Speed_Cmd, Pump_ROP_Speed_Cmd,
+    %Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd]
     drillCmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
@@ -90,15 +92,22 @@ function returnVal = getValuesFromApp(appHand)
     Ki_Heater = appHand.Ki_Heater;
     Kd_Heater = appHand.Kd_Heater;
     TemperatureSetpoint = appHand.TemperatureSetpoint;
-    
+    HeaterPowerSetpoint = appHand.HeaterPowerSetpoint;
+    Extraction_ROP_Speed_Cmd = appHand.Extraction_ROP_Speed_Cmd;
+    Pump_ROP_Speed_Cmd = appHand.Pump_ROP_Speed_Cmd;
+    Extraction_ROP_Direction_Cmd = appHand.Extraction_ROP_Direction_Cmd;
+    Pump_ROP_Direction_Cmd = appHand.Pump_ROP_Direction_Cmd;
     if (tare == 1)
         appHand.Tare_Cmd = 0; %reset tare to 0 in app
     end
     
     returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," ...
         + rpm + "," + heater + "," + pump + "," + tare + "," + zeroCmd + "," + fakeZero + "," ...
-        + drillCmd + "," + WOBsetpoint + "," + Kp_Drill + "," + Ki_Drill + "," + Kd_Drill ...
-        + "," + Kp_Heater + "," + Ki_Heater + "," + Kd_Heater + "," + TemperatureSetpoint; 
+        + drillCmd + "," + WOBsetpoint + "," + Kp_Drill + "," + Ki_Drill + "," + Kd_Drill+ "," ...
+        + Kp_Heater + "," + Ki_Heater + "," + Kd_Heater + "," + TemperatureSetpoint + "," ...
+        + HeaterPowerSetpoint + "," + Extraction_ROP_Speed_Cmd + "," + Pump_ROP_Speed_Cmd + "," ...
+        + Extraction_ROP_Direction_Cmd + "," + Pump_ROP_Direction_Cmd;
+    
 end
 
 function readSerialData(src,~)

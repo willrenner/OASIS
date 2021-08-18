@@ -1,9 +1,9 @@
 #include <SPI.h>
 #include "Adafruit_MAX31855.h"
 
-#define thermocoupleCLK 3
-#define thermocoupleDO 5
-#define thermocoupleCS 4
+#define thermocoupleCLK 28
+#define thermocoupleDO 30
+#define thermocoupleCS 29
 Adafruit_MAX31855 thermocouple(thermocoupleCLK, thermocoupleCS, thermocoupleDO);
 
 void setup()
@@ -18,13 +18,13 @@ void setup()
     }
     Serial.println("Thermcouple setup complete!");
     Serial.print("Int. Temp = ");
-    Serial.println(thermocouple.readInternal());
+    Serial.println((float)thermocouple.readCelsius() * 1.8 + 32, 2);
 }
 
 void loop()
 {
     Serial.print("Heater temp: ");
-    Serial.println((float)thermocouple.readInternal() * 1.8 + 32, 2);
+    Serial.println((float)thermocouple.readCelsius() * 1.8 + 32, 2);
 
     delay(100);
 }

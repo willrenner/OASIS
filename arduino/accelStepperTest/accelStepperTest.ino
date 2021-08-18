@@ -1,7 +1,7 @@
 #include <AccelStepper.h>
-uint8_t pin2 = 2;
-uint8_t pin3 = 3;
-AccelStepper stepper(1, pin2,pin3); // Defaults to AccelStepper::FULL4WIRE (4 pins) on 2, 3, 4, 5
+uint8_t pinA = 4;
+uint8_t pinB = 10;
+AccelStepper stepper(1, pinA,pinB); // Defaults to AccelStepper::FULL4WIRE (4 pins) on 2, 3, 4, 5
 void setup()
 {  
    Serial.begin(9600);
