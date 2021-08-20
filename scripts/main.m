@@ -60,7 +60,6 @@ clear all;
 
 
 function writeDataToFile(da, fid)
-    
     t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
     p = posixtime(t);
 %   coming in from arduino: [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE, heaterTemp,heaterPower]

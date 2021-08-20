@@ -5,9 +5,9 @@
 
 
 
-struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint]
+struct controlCommands {
     int drillControlMode; // 1 for manual rop control, 0 for automatic (pid)
-    int drillMovementDirection; // 1 for down, 0 for stop, -1 for up
+    int drillMovementDirection;
     double speed;
     int miragePositionCmd;
     int Drill_RPM;
@@ -32,7 +32,7 @@ struct controlCommands {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
     int Pump_ROP_Dir_Cmd;
 };
 
-controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint]
+controlCommands cmds = {
     .drillControlMode = 1,
     .drillMovementDirection = 0,
     .speed = 0,
@@ -57,12 +57,11 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
     .Pump_ROP_Speed_Cmd = 0,
     .Extraction_ROP_Dir_Cmd = 0,
     .Pump_ROP_Dir_Cmd = 0
-
 };
 
 
 #define numCmds 25 //num of vars in struct above
-#define sizeOfCmd 200 //number of chars sent from matlab to arduino must be less than this
+#define sizeOfCmd 300 //number of chars sent from matlab to arduino must be less than this
 #define limitSwitchPin 7
 #define drillStepPin 2
 #define drillDirPin 8
@@ -241,26 +240,6 @@ void sendDataOut() {
     Serial.print(",");
     Serial.print(heaterPower, 2);
     Serial.print(",");
-    //sanity check from matlab below
-    //[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
-
-    // Serial.print(cmds.drillControlMode, DEC); //formated as int
-    // Serial.print(",");
-    // Serial.print(cmds.drillMovementDirection, DEC); //formated as int
-    // Serial.print(",");
-    // Serial.print(cmds.speed, 2); //formated as float to 2 decials
-    // Serial.print(",");
-    // Serial.print(cmds.miragePositionCmd, DEC); //formated as int
-    // Serial.print(",");
-    // Serial.print(cmds.Drill_RPM, DEC); //formated as int
-    // Serial.print(",");
-    // Serial.print(cmds.heaterCmd, DEC); //formated as int
-    // Serial.print(",");
-    // Serial.print(cmds.pumpCmd, DEC); //formated as int
-    // Serial.print(",");
-    // Serial.print(cmds.tareCmd, DEC); //formated as int
-    // Serial.print(",");
-    // Serial.print(cmds.drillCmd, DEC); //formated as int
     Serial.print("\n"); //serial terminator
 }
 void serialEvent() {
