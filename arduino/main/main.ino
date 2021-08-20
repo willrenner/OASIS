@@ -61,7 +61,7 @@ controlCommands cmds = {//[drillCmdMode, dir, speed, miragePosition, rpm, heater
 };
 
 
-#define numCmds 23 //num of vars in struct above
+#define numCmds 25 //num of vars in struct above
 #define sizeOfCmd 200 //number of chars sent from matlab to arduino must be less than this
 #define limitSwitchPin 7
 #define drillStepPin 2
@@ -76,11 +76,11 @@ const int HX711_data_1 = 10;
 const int HX711_clck_1 = 11;
 #define heaterRelayPin 6
 #define pumpRelayPin 7
-#define drillRelayPin 13
+#define drillRelayPin 34
 #define currentSensorPin A0
-#define thermocoupleCLK 28
-#define thermocoupleDO 30
-#define thermocoupleCS 29
+#define thermocoupleCLK 28 //GREEN
+#define thermocoupleDO 30 //BLUE
+#define thermocoupleCS 29 //WHITE
 #define heaterModulePin A1
 
 #define currentSensorRate 120
@@ -163,7 +163,8 @@ void setup() {
     delay(1000);
     amptimer.every(((float)1 / currentSensorRate) * 1000, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
     WOBtimer.every(50, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
-    heatertimer.every(50, setHeaterPower);
+    // heatertimer.every(50, setHeaterPower);
+    analogWrite(heaterModulePin, 255);
 
     pinMode(RPMsensor_interupt_pin, INPUT);
     pinMode(limitSwitchPin, INPUT);
@@ -179,6 +180,9 @@ void setup() {
 
     DrillStepper.setMaxSpeed(drillStepperMaxSpeed);
     MirageStepper.setMaxSpeed(400); // Steps per second
+    PumpStepper.setMaxSpeed(800); // Steps per second
+    ExtractionStepper.setMaxSpeed(drillStepperMaxSpeed); // Steps per second
+
     MirageStepper.setAcceleration(50); //Steps/sec^2
 
     Serial.begin(115200);
@@ -323,8 +327,8 @@ void buildDataStruct() {
     cmds.HeaterPowerSetpoint = atoi(arrayOfcstring[19]);
     cmds.Extraction_ROP_Speed_Cmd = atoi(arrayOfcstring[20]);
     cmds.Pump_ROP_Speed_Cmd = atoi(arrayOfcstring[21]);
-
-
+    cmds.Extraction_ROP_Dir_Cmd = atoi(arrayOfcstring[22]);
+    cmds.Pump_ROP_Dir_Cmd = atoi(arrayOfcstring[23]);
 }
 void doHousekeeping() {
     if (incomingStringComplete) {
@@ -409,7 +413,7 @@ void setStepperSpeeds() {
         // }
     // }
             ExtractionStepper.setSpeed(cmds.Extraction_ROP_Speed_Cmd * cmds.Extraction_ROP_Dir_Cmd * mmPerSec_to_stepsPerSec); // for lead screw
-            PumpStepper.setSpeed(cmds.Pump_ROP_Speed_Cmd * cmds.Pump_ROP_Dir_Cmd);
+            PumpStepper.setSpeed(-1 * cmds.Pump_ROP_Speed_Cmd * cmds.Pump_ROP_Dir_Cmd);
 
 }
 
@@ -469,7 +473,12 @@ void getdrillRPM() {
 void fpsCounter() {
     t1 = millis();
     if ((t1 - t2) > 1000) {
+        Serial.print("FPS: ");
         Serial.println(fpscount);
+        Serial.print("Temp: ");
+        Serial.println(heaterTemperature, 2);
+        Serial.print("Heater power: ");
+        Serial.println(cmds.HeaterPowerSetpoint);
         fpscount = 0;
         t2 = millis();
     }
@@ -498,7 +507,9 @@ bool getWOB(void*) {
     return true;
 }
 bool setHeaterPower(void*) {
-    analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint);
+    analogWrite(heaterModulePin, 250);
+    // analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint * 2.5);
+
     // heaterTemperature = (float)thermocouple.readCelsius();
     // Serial.print("Heater temp: ");
     // Serial.println((float)thermocouple.readInternal(), 2);
