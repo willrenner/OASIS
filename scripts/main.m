@@ -34,7 +34,9 @@ while(running)
             dataArray = strsplit(data, ',');
             sizeOfArr = size(dataArray);
             if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
-                fprintf("LoadCellLeftValue: %4.2f, LoadCellRightValue: %4.2f, DrillCurrent: %4.2f, HeaterPower: %4.2f, HeaterTemp: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5));
+                fprintf("LoadCellLeftValue: %4.2f, LoadCellRightValue: %4.2f, DrillCurrent: %4.2f, HeaterPower: %4.2f, HeaterTemp: %4.2f, DrillPos: %4.2f, Extr. Pos: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7));
+                incomingData = sprintf("LoadCellLeftValue: %4.2f, LoadCellRightValue: %4.2f, DrillCurrent: %4.2f, HeaterPower: %4.2f, HeaterTemp: %4.2f, DrillPos: %4.2f, Extr.Pos: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7));
+                appHandlele.IncomingDataLabel.Text = incomingData; 
                 %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
                 %fprintf("CmdMode: %2.0f, DirectionCmd: %2.0f, SpeedCmd: %7.2f, MirageAngleCmd: %7.2f, RPM_Cmd: %7.2f, HeaterCmd: %2.0f, PumpCmd: %2.0f, TareCmd: %2.0f, DrillCmd: %2.0f\n",dataArray(7),dataArray(8),dataArray(9),dataArray(10),dataArray(11), dataArray(12), dataArray(13), dataArray(14), dataArray(15));
                 setAppData(appHandle, dataArray); %change data in app
@@ -68,19 +70,19 @@ end
 
 function returnVal = getValuesFromApp(appHand) 
     %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare,
-    %zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill,
+    %DrillZeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill,
     %Kd_Drill, Kp_Heater, Ki_Heater,Kd_Heater, TemperatureSetpoint,
     %HeaterPowerSetpoint, Extraction_ROP_Speed_Cmd, Pump_ROP_Speed_Cmd,
-    %Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd, Mirage_Speed_Cmd, Mirage_Direction_Cmd]
+    %Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd, Mirage_Speed_Cmd, Mirage_Direction_Cmd, ExtractionZeroCmd]
     drillCmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
     miragePosition = 99; %mirage position
     rpm = appHand.RPMSpeed_Cmd;
     heater = appHand.Heater_Cmd;
-    pump = appHand.Pump_Cmd;
+    pump = appHand.Pump_Cmd; %not used
     tare = appHand.Tare_Cmd;
-    zeroCmd = appHand.DrillZero_Cmd;
+    DrillZeroCmd = appHand.DrillZero_Cmd;
     fakeZero = appHand.FakeZero_Cmd;
     drillCmd = appHand.Drill_Cmd;
     WOBsetpoint = appHand.WOBsetpoint;
@@ -98,17 +100,24 @@ function returnVal = getValuesFromApp(appHand)
     Pump_ROP_Direction_Cmd = appHand.Pump_ROP_Direction_Cmd;
     Mirage_Speed_Cmd = appHand.Mirage_Speed_Cmd;
     Mirage_Direction_Cmd = appHand.Mirage_Direction_Cmd;
+    ExtractionZeroCmd = appHand.ExtractionZero_Cmd;
     if (tare == 1)
-        appHand.Tare_Cmd = 0; %reset tare to 0 in app
+        appHand.Tare_Cmd = 0; %reset to 0 in app
+    end
+    if (ExtractionZeroCmd == 1)
+        appHand.ExtractionZero_Cmd = 0; %reset to 0 in app
+    end
+     if (DrillZeroCmd == 1)
+        appHand.DrillZero_Cmd = 0; %reset to 0 in app
     end
     
     returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," ...
-        + rpm + "," + heater + "," + pump + "," + tare + "," + zeroCmd + "," + fakeZero + "," ...
+        + rpm + "," + heater + "," + pump + "," + tare + "," + DrillZeroCmd + "," + fakeZero + "," ...
         + drillCmd + "," + WOBsetpoint + "," + Kp_Drill + "," + Ki_Drill + "," + Kd_Drill+ "," ...
         + Kp_Heater + "," + Ki_Heater + "," + Kd_Heater + "," + TemperatureSetpoint + "," ...
         + HeaterPowerSetpoint + "," + Extraction_ROP_Speed_Cmd + "," + Pump_ROP_Speed_Cmd + "," ...
         + Extraction_ROP_Direction_Cmd + "," + Pump_ROP_Direction_Cmd + "," ...
-        + Mirage_Speed_Cmd + "," + Mirage_Direction_Cmd;
+        + Mirage_Speed_Cmd + "," + Mirage_Direction_Cmd + "," + ExtractionZeroCmd;
 end
 
 function readSerialData(src,~)

@@ -15,7 +15,7 @@ struct controlCommands {
     int pumpCmd;
     int drillCmd;
     int tareCmd;
-    int zeroCmd;
+    int drillZeroCmd;
     int fakeZero;
     int WOBsetpoint;
     int Kp_Drill;
@@ -32,6 +32,7 @@ struct controlCommands {
     int Pump_ROP_Dir_Cmd;
     int Mirage_Speed_Cmd;
     int Mirage_Direction_Cmd;
+    int ExtractionZeroCmd;
 };
 
 controlCommands cmds = {
@@ -44,7 +45,7 @@ controlCommands cmds = {
     .pumpCmd = 0,
     .drillCmd = 0,
     .tareCmd = 0,
-    .zeroCmd = 0,
+    .drillZeroCmd = 0,
     .fakeZero = 0,
     .WOBsetpoint = 0,
     .Kp_Drill = 0,
@@ -60,11 +61,12 @@ controlCommands cmds = {
     .Extraction_ROP_Dir_Cmd = 0,
     .Pump_ROP_Dir_Cmd = 0,
     .Mirage_Speed_Cmd = 0,
-    .Mirage_Direction_Cmd = 0
+    .Mirage_Direction_Cmd = 0,
+    .ExtractionZeroCmd = 0
 };
 
 
-#define numCmds 25 //num of vars in struct above
+#define numCmds 26 //num of vars in struct above
 #define sizeOfCmd 300 //number of chars sent from matlab to arduino must be less than this
 #define limitSwitchPin 7
 #define drillStepPin 2
@@ -221,12 +223,6 @@ void loop() {
     doHousekeeping();
 }
 
-/*
-  SerialEvent occurs whenever a new data comes in the hardware serial RX. This
-  routine is run between each time loop() runs, so using delay inside loop can
-  delay response. Multiple bytes of data may be available.
-*/
-
 void sendDataOut() {
     //LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp ----- ACTIVE
 
@@ -242,6 +238,10 @@ void sendDataOut() {
     Serial.print(cmds.HeaterPowerSetpoint, 2);
     Serial.print(",");
     Serial.print(heaterTemperature, 2);
+    Serial.print(",");
+    Serial.print(DrillStepper.currentPosition() * 8/400, 2); //  8/400 is ratio to get from steps to mm
+    Serial.print(",");
+    Serial.print(ExtractionStepper.currentPosition() * 8/400, 2);
     Serial.print(",");
     Serial.print("\n"); //serial terminator
 }
@@ -273,10 +273,10 @@ void formatIncomingData() {
 }
 void buildDataStruct() { 
 //     % [drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare,
-//         % zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill,
+//         % drillZeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill,
 //         % Kd_Drill, Kp_Heater, Ki_Heater, Kd_Heater, TemperatureSetpoint,
 //         % HeaterPowerSetpoint, Extraction_ROP_Speed_Cmd, Pump_ROP_Speed_Cmd,
-//         % Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd, Mirage_Speed_Cmd, Mirage_Direction_Cmd]
+//         % Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd, Mirage_Speed_Cmd, Mirage_Direction_Cmd, ExtractionZeroCmd]
     //mode
     cmds.drillControlMode = atoi(arrayOfcstring[0]);
     //direction
@@ -290,11 +290,11 @@ void buildDataStruct() {
     //heater
     cmds.heaterCmd = atoi(arrayOfcstring[5]);
     //pump
-    cmds.pumpCmd = atoi(arrayOfcstring[6]);
+    cmds.pumpCmd = atoi(arrayOfcstring[6]); //not used
     //load cell
     cmds.tareCmd = atoi(arrayOfcstring[7]);
     //zero cmd
-    cmds.zeroCmd = atoi(arrayOfcstring[8]);
+    cmds.drillZeroCmd = atoi(arrayOfcstring[8]);
     //fake zero
     cmds.fakeZero = atoi(arrayOfcstring[9]);
     // if (cmds.fakeZero == 1) drillLimitSwitchActive = 1;
@@ -313,8 +313,9 @@ void buildDataStruct() {
     cmds.Pump_ROP_Speed_Cmd = atoi(arrayOfcstring[21]);
     cmds.Extraction_ROP_Dir_Cmd = atoi(arrayOfcstring[22]);
     cmds.Pump_ROP_Dir_Cmd = atoi(arrayOfcstring[23]);
-    cmds.Mirage_Speed_Cmd = atoi(arrayOfcstring[23]);
-    cmds.Mirage_Direction_Cmd = atoi(arrayOfcstring[24]);
+    cmds.Mirage_Speed_Cmd = atoi(arrayOfcstring[24]);
+    cmds.Mirage_Direction_Cmd = atoi(arrayOfcstring[25]);
+    cmds.ExtractionZeroCmd = atoi(arrayOfcstring[26]);
 }
 void doHousekeeping() {
     if (incomingStringComplete) {
@@ -336,10 +337,10 @@ void setMiragePosition() {
 }
 
 void checkRelayCmds() {
-    if (cmds.pumpCmd == 0) {
-        digitalWrite(pumpRelayPin, HIGH);
-    }
-    else digitalWrite(pumpRelayPin, LOW);
+    // if (cmds.pumpCmd == 0) {
+    //     digitalWrite(pumpRelayPin, HIGH);
+    // }
+    // else digitalWrite(pumpRelayPin, LOW);
 
     if (cmds.heaterCmd == 0) {
         digitalWrite(heaterRelayPin, HIGH);
@@ -387,7 +388,7 @@ void setStepperSpeeds() {
     //     }
     // }
     // else {
-    //     if (cmds.zeroCmd == 1) { //zeroing
+    //     if (cmds.drillZeroCmd == 1) { //zeroing
     //         DrillStepper.setSpeed(zeroingStepperMaxSpeed * -1); // moveup
     //     }
     //     else if (cmds.drillControlMode == 0) { //automatic/limit WOB/pid control mode
@@ -399,7 +400,7 @@ void setStepperSpeeds() {
         // }
     // }
             ExtractionStepper.setSpeed(cmds.Extraction_ROP_Speed_Cmd * cmds.Extraction_ROP_Dir_Cmd * mmPerSec_to_stepsPerSec); // for lead screw
-            PumpStepper.setSpeed(cmds.pumpCmd * cmds.Pump_ROP_Speed_Cmd * cmds.Pump_ROP_Dir_Cmd);
+            PumpStepper.setSpeed(cmds.Pump_ROP_Speed_Cmd * cmds.Pump_ROP_Dir_Cmd);
             MirageStepper.setSpeed(cmds.Mirage_Speed_Cmd * cmds.Mirage_Direction_Cmd);
 }
 
@@ -412,6 +413,16 @@ void checkLoadCellTare() {
     }
     if ((LoadCellLeft.getTareStatus() == true) && (LoadCellRight.getTareStatus() == true)) { //check if last tare operation is complete
         Serial.println("Tare Load Cell Complete");
+    }
+}
+void checkZeroCommands() {
+    if (cmds.drillZeroCmd == 1) {
+        DrillStepper.setCurrentPosition(0);
+        cmds.drillZeroCmd = 0;
+    }
+    if (cmds.ExtractionZeroCmd == 1) {
+        ExtractionStepper.setCurrentPosition(0);
+        cmds.ExtractionZeroCmd = 0;
     }
 }
 
@@ -470,7 +481,7 @@ void fpsCounter() {
         // Serial.print("Temp: ");
         // Serial.println(heaterTemperature, 2);
         // Serial.print("Heater power: ");
-        // Serial.println(cmds.HeaterPowerSetpoint);
+        // Serial.println(cmds. * 2.55);
         fpscount = 0;
         t2 = millis();
     }
@@ -500,8 +511,7 @@ bool getLoadCells(void*) {
     return true;
 }
 bool setHeaterPower(void*) {
-    analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint);
-    // analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint * 2.5);
+    analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint * 2.55);
 
     // heaterTemperature = (float)thermocouple.readCelsius();
     // Serial.print("Heater temp: ");
