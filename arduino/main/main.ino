@@ -30,6 +30,8 @@ struct controlCommands {
     int Pump_ROP_Speed_Cmd;
     int Extraction_ROP_Dir_Cmd;
     int Pump_ROP_Dir_Cmd;
+    int Mirage_Speed_Cmd;
+    int Mirage_Direction_Cmd;
 };
 
 controlCommands cmds = {
@@ -56,7 +58,9 @@ controlCommands cmds = {
     .Extraction_ROP_Speed_Cmd = 0,
     .Pump_ROP_Speed_Cmd = 0,
     .Extraction_ROP_Dir_Cmd = 0,
-    .Pump_ROP_Dir_Cmd = 0
+    .Pump_ROP_Dir_Cmd = 0,
+    .Mirage_Speed_Cmd = 0,
+    .Mirage_Direction_Cmd = 0
 };
 
 
@@ -71,8 +75,10 @@ controlCommands cmds = {
 #define extractionDirPin 11 
 #define pumpStepPin 4
 #define pumpDirPin 10
-const int HX711_data_1 = 10;
-const int HX711_clck_1 = 11;
+const int LoadCellLeftData = 36;
+const int LoadCellLeftClock = 38;
+const int LoadCellRightData = 40;
+const int LoadCellRightClock = 42;
 #define heaterRelayPin 6
 #define pumpRelayPin 7
 #define drillRelayPin 34
@@ -80,7 +86,7 @@ const int HX711_clck_1 = 11;
 #define thermocoupleCLK 28 //GREEN
 #define thermocoupleDO 30 //BLUE
 #define thermocoupleCS 29 //WHITE
-#define heaterModulePin A1
+#define heaterModulePin 13
 
 #define currentSensorRate 120
 #define RPMsensor_interupt_pin 18 // interupt pin (On arduino Mega pins 2, 3, 18, 19, 20,& 21 can be used for interupts)
@@ -102,7 +108,9 @@ AccelStepper MirageStepper(1, mirageStepPin, mirageDirPin);
 AccelStepper ExtractionStepper(1, extractionStepPin, extractionDirPin);
 AccelStepper PumpStepper(1, pumpStepPin, pumpDirPin);
 
-HX711_ADC LoadCell(HX711_data_1, HX711_clck_1); // Module 1 for drilling system
+HX711_ADC LoadCellLeft(LoadCellLeftData, LoadCellLeftClock); // Module 1 for drilling system
+HX711_ADC LoadCellRight(LoadCellRightData, LoadCellRightClock); // Module 1 for drilling system
+
 Adafruit_MAX31855 thermocouple(thermocoupleCLK, thermocoupleCS, thermocoupleDO);
 
 
@@ -125,7 +133,8 @@ int ampCounter = 0;
 float MSE = 0;
 float augerArea = PI * pow(0.04, 2);
 float  currentSensorValue = 0;
-float  WOB                = 0;
+float  LoadCellLeftValue       = 0;
+float  LoadCellRightValue      = 0;
 float  targetWOB          = 50;  //Newtons
 float  WOBerror           = 0;    //pid
 float  WOBcumulativeError = 0;
@@ -155,15 +164,16 @@ unsigned long fpscount = 0;
 unsigned long t1 = 0;
 unsigned long t2 = 0;
 auto amptimer = timer_create_default();
-auto WOBtimer = timer_create_default();
-auto heatertimer = timer_create_default();
+auto LoadCellTimer = timer_create_default();
+auto HeaterTimer = timer_create_default();
 //
 void setup() {
     delay(1000);
     amptimer.every(((float)1 / currentSensorRate) * 1000, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
-    WOBtimer.every(50, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
-    // heatertimer.every(50, setHeaterPower);
-    analogWrite(heaterModulePin, 255);
+    LoadCellTimer.every(100, getLoadCells); //calls func every set period, don't want to call every loop b/c analog read is slow
+    HeaterTimer.every(50, setHeaterPower);
+    setupLoadCells();
+
 
     pinMode(RPMsensor_interupt_pin, INPUT);
     pinMode(limitSwitchPin, INPUT);
@@ -174,16 +184,13 @@ void setup() {
     // pinMode(AC_pin, OUTPUT);
     // attachInterrupt(0, Drill_RPM, FALLING); //actuator when pin is falling high to low to form square wave
 
-    setupLoadCell();
     setupThermocouple();
 
     DrillStepper.setMaxSpeed(drillStepperMaxSpeed);
     MirageStepper.setMaxSpeed(400); // Steps per second
     PumpStepper.setMaxSpeed(800); // Steps per second
     ExtractionStepper.setMaxSpeed(drillStepperMaxSpeed); // Steps per second
-
     MirageStepper.setAcceleration(50); //Steps/sec^2
-
     Serial.begin(115200);
     while (!Serial) {
         ; // wait for serial port to connect. Needed for native USB port only
@@ -194,17 +201,19 @@ void setup() {
 
 void loop() {
     amptimer.tick();
-    WOBtimer.tick();
+    LoadCellTimer.tick();
+    HeaterTimer.tick();
 
-    fpsCounter();
+    // fpsCounter();
     checkRelayCmds();
     checkLoadCellTare();
 //  checkLimitSwitches(); //can't bc not tied low (will bounce around if not actually connected)
     getdrillRPM();
     getMSE();
     setStepperSpeeds();
-    setMiragePosition();    
-    MirageStepper.run();
+    // setMiragePosition();    
+    // MirageStepper.run();
+    MirageStepper.runSpeed();   
     DrillStepper.runSpeed();   
     PumpStepper.runSpeed();
     ExtractionStepper.runSpeed();
@@ -219,26 +228,20 @@ void loop() {
 */
 
 void sendDataOut() {
-    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE, heaterTemp,heaterPower] ... update as needed
-    drillPos = DrillStepper.currentPosition() * drillStepperRatio; //to get mm
-    mirageAngle = MirageStepper.currentPosition();
-    Serial.print(WOB, 2);
+    //LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp ----- ACTIVE
+
+    //indicies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE, heaterTemp,heaterPower] ----- INACTIVE
+    // drillPos = DrillStepper.currentPosition() * drillStepperRatio; //to get mm
+    // mirageAngle = MirageStepper.currentPosition();
+    Serial.print(LoadCellLeftValue, 2);
     Serial.print(",");
-    Serial.print(cmds.Drill_RPM, DEC);
+    Serial.print(LoadCellRightValue, 2);
     Serial.print(",");
     Serial.print(drillCurrent, 2);
     Serial.print(",");
-    Serial.print(drillPos, 2);
-    Serial.print(",");
-    Serial.print(mirageAngle, 2);
-    Serial.print(",");
-    Serial.print(drillLimitSwitchActive, DEC);
-    Serial.print(",");
-    Serial.print(MSE, 2);
-    Serial.print(",");
     Serial.print(cmds.HeaterPowerSetpoint, 2);
     Serial.print(",");
-    Serial.print(heaterPower, 2);
+    Serial.print(heaterTemperature, 2);
     Serial.print(",");
     Serial.print("\n"); //serial terminator
 }
@@ -269,9 +272,11 @@ void formatIncomingData() {
     // Serial.println("here: " + String(arrayOfcstring[1]));
 }
 void buildDataStruct() { 
-    // [drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare, zeroCmd, 
-    // fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill, Kd_Drill, Kp_Heater, 
-    // Ki_Heater,Kd_Heater, TemperatureSetpoint, HeaterPowerSetpoint, Extraction_ROP_Speed_Cmd, Pump_ROP_Speed_Cmd]
+//     % [drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare,
+//         % zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill,
+//         % Kd_Drill, Kp_Heater, Ki_Heater, Kd_Heater, TemperatureSetpoint,
+//         % HeaterPowerSetpoint, Extraction_ROP_Speed_Cmd, Pump_ROP_Speed_Cmd,
+//         % Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd, Mirage_Speed_Cmd, Mirage_Direction_Cmd]
     //mode
     cmds.drillControlMode = atoi(arrayOfcstring[0]);
     //direction
@@ -308,6 +313,8 @@ void buildDataStruct() {
     cmds.Pump_ROP_Speed_Cmd = atoi(arrayOfcstring[21]);
     cmds.Extraction_ROP_Dir_Cmd = atoi(arrayOfcstring[22]);
     cmds.Pump_ROP_Dir_Cmd = atoi(arrayOfcstring[23]);
+    cmds.Mirage_Speed_Cmd = atoi(arrayOfcstring[23]);
+    cmds.Mirage_Direction_Cmd = atoi(arrayOfcstring[24]);
 }
 void doHousekeeping() {
     if (incomingStringComplete) {
@@ -361,15 +368,15 @@ void checkLimitSwitches() {
     // }
 }
 void setROP() {
-    WOBcurrTime = micros();
-    WOBelapsedTime = (float)(WOBcurrTime - WOBprevTime);
-    WOBerror = cmds.WOBsetpoint - WOB; //proportional
-    WOBcumulativeError += WOBerror * WOBelapsedTime * 1e6; //integral
-    WOBrateError = (WOBerror - WOBprevError) / (WOBelapsedTime * 1e6); //deriv
-    PIDspeedCmd = WOBerror * cmds.Kp_Drill + WOBcumulativeError * cmds.Ki_Drill + WOBrateError * cmds.Kd_Drill; //trial error for values
-    PIDspeedCmd = constrain(PIDspeedCmd, 0, PIDstepperMaxSpeed); //clamps to PIDstepperMaxSpeed (steps/sec)
-    WOBprevError = WOBerror;
-    WOBprevTime = micros();
+    // WOBcurrTime = micros();
+    // WOBelapsedTime = (float)(WOBcurrTime - WOBprevTime);
+    // WOBerror = cmds.WOBsetpoint - WOB; //proportional
+    // WOBcumulativeError += WOBerror * WOBelapsedTime * 1e6; //integral
+    // WOBrateError = (WOBerror - WOBprevError) / (WOBelapsedTime * 1e6); //deriv
+    // PIDspeedCmd = WOBerror * cmds.Kp_Drill + WOBcumulativeError * cmds.Ki_Drill + WOBrateError * cmds.Kd_Drill; //trial error for values
+    // PIDspeedCmd = constrain(PIDspeedCmd, 0, PIDstepperMaxSpeed); //clamps to PIDstepperMaxSpeed (steps/sec)
+    // WOBprevError = WOBerror;
+    // WOBprevTime = micros();
 }
 void setStepperSpeeds() {
     // if (drillLimitSwitchActive == 1) { //limit switch reached
@@ -392,26 +399,28 @@ void setStepperSpeeds() {
         // }
     // }
             ExtractionStepper.setSpeed(cmds.Extraction_ROP_Speed_Cmd * cmds.Extraction_ROP_Dir_Cmd * mmPerSec_to_stepsPerSec); // for lead screw
-            PumpStepper.setSpeed(-1 * cmds.Pump_ROP_Speed_Cmd * cmds.Pump_ROP_Dir_Cmd);
-
+            PumpStepper.setSpeed(cmds.pumpCmd * cmds.Pump_ROP_Speed_Cmd * cmds.Pump_ROP_Dir_Cmd);
+            MirageStepper.setSpeed(cmds.Mirage_Speed_Cmd * cmds.Mirage_Direction_Cmd);
 }
 
 void checkLoadCellTare() {
     if (cmds.tareCmd == 1) {
-        LoadCell.tareNoDelay();
+        LoadCellLeft.tareNoDelay();
+        LoadCellRight.tareNoDelay();
         cmds.tareCmd = 0;
         Serial.println("Started Tare");
     }
-    if (LoadCell.getTareStatus() == true) { //check if last tare operation is complete
+    if ((LoadCellLeft.getTareStatus() == true) && (LoadCellRight.getTareStatus() == true)) { //check if last tare operation is complete
         Serial.println("Tare Load Cell Complete");
     }
 }
 
-void setupLoadCell() {
+void setupLoadCells() {
     // Define calibration values given by the calibration script
     float calval_LoadCell;
     calval_LoadCell = -7500;
-    LoadCell.begin();
+    LoadCellLeft.begin();
+    LoadCellRight.begin();
     unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
     boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
     byte LoadCell_ready = 0;
@@ -422,18 +431,22 @@ void setupLoadCell() {
     //     if (!LoadCell_ready) LoadCell_ready = LoadCell.startMultiple(stabilizingtime, _tare);
     // }
 
-    if (LoadCell.getTareTimeoutFlag()) {
-        Serial.println("Timeout, check wiring and pin designations for load cell module");
+    if (LoadCellLeft.getTareTimeoutFlag()) {
+        Serial.println("Timeout on Left, check wiring and pin designations for load cell module");
+    }
+        if (LoadCellRight.getTareTimeoutFlag()) {
+        Serial.println("Timeout on Right, check wiring and pin designations for load cell module");
     }
     // Apply calibration value
-    LoadCell.setCalFactor(calval_LoadCell);
+    LoadCellLeft.setCalFactor(calval_LoadCell);
+    LoadCellRight.setCalFactor(calval_LoadCell);
     Serial.println("Load Cell startup is complete");
 }
 void setupThermocouple() {
     
     Serial.println("Thermcouple setup complete!");
     Serial.print("Int. Temp = ");
-    Serial.println((float)thermocouple.readCelsius() * 1.8 + 32, 2);
+    Serial.println((float)thermocouple.readFahrenheit(), 2);
 }
 
 void addValue() {
@@ -454,10 +467,10 @@ void fpsCounter() {
     if ((t1 - t2) > 1000) {
         Serial.print("FPS: ");
         Serial.println(fpscount);
-        Serial.print("Temp: ");
-        Serial.println(heaterTemperature, 2);
-        Serial.print("Heater power: ");
-        Serial.println(cmds.HeaterPowerSetpoint);
+        // Serial.print("Temp: ");
+        // Serial.println(heaterTemperature, 2);
+        // Serial.print("Heater power: ");
+        // Serial.println(cmds.HeaterPowerSetpoint);
         fpscount = 0;
         t2 = millis();
     }
@@ -481,12 +494,13 @@ bool getCurrentSensorValue(void*) { //analog read is slow
     // drillCurrent = 0.1*drillCurrent + 0.9*RMScurrentVal; //filter the values with complementary filter
     // return true;
 }
-bool getWOB(void*) {
-    if (LoadCell.update()) WOB = LoadCell.getData(); //this is slow culprit
+bool getLoadCells(void*) {
+    if (LoadCellLeft.update()) LoadCellLeftValue = LoadCellLeft.getData(); //this is slow culprit
+    if (LoadCellRight.update()) LoadCellRightValue = LoadCellRight.getData(); //this is slow culprit
     return true;
 }
 bool setHeaterPower(void*) {
-    analogWrite(heaterModulePin, 250);
+    analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint);
     // analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint * 2.5);
 
     // heaterTemperature = (float)thermocouple.readCelsius();

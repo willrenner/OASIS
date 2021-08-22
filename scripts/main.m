@@ -30,11 +30,11 @@ while(running)
             changed = false;
         end
         if (dataRecieved)
-            %indecies =====> [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE, heaterTemp,heaterPower] ... update as needed
+            %indecies =====> LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp ... update as needed
             dataArray = strsplit(data, ',');
             sizeOfArr = size(dataArray);
             if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
-                fprintf("WOB: %3.2f, RPM: %7.2f, Current: %2.2f, Z-Pos: %6.2f, Mir-Ang: %7.2f, Lim-Sw: %2.0f, MSE: %2.0f, heaterTemp: %2.0f, heaterPower: %2.0f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5), dataArray(6), dataArray(7), dataArray(8), dataArray(8));
+                fprintf("LoadCellLeftValue: %4.2f, LoadCellRightValue: %4.2f, DrillCurrent: %4.2f, HeaterPower: %4.2f, HeaterTemp: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5));
                 %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
                 %fprintf("CmdMode: %2.0f, DirectionCmd: %2.0f, SpeedCmd: %7.2f, MirageAngleCmd: %7.2f, RPM_Cmd: %7.2f, HeaterCmd: %2.0f, PumpCmd: %2.0f, TareCmd: %2.0f, DrillCmd: %2.0f\n",dataArray(7),dataArray(8),dataArray(9),dataArray(10),dataArray(11), dataArray(12), dataArray(13), dataArray(14), dataArray(15));
                 setAppData(appHandle, dataArray); %change data in app
@@ -60,10 +60,10 @@ clear all;
 
 
 function writeDataToFile(da, fid)
-    t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
-    p = posixtime(t);
-%   coming in from arduino: [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE, heaterTemp,heaterPower]
-    fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6),da(7),da(8),da(9)); % Write to file  
+%     t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
+%     p = posixtime(t);
+% %   coming in from arduino: [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE, heaterTemp,heaterPower]
+%     fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6),da(7),da(8),da(9)); % Write to file  
 end
 
 function returnVal = getValuesFromApp(appHand) 
@@ -71,11 +71,11 @@ function returnVal = getValuesFromApp(appHand)
     %zeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill,
     %Kd_Drill, Kp_Heater, Ki_Heater,Kd_Heater, TemperatureSetpoint,
     %HeaterPowerSetpoint, Extraction_ROP_Speed_Cmd, Pump_ROP_Speed_Cmd,
-    %Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd]
+    %Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd, Mirage_Speed_Cmd, Mirage_Direction_Cmd]
     drillCmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
-    miragePosition = appHand.Mirage_Position_Cmd * appHand.Mirage_Direction_Cmd; %mirage position
+    miragePosition = 99; %mirage position
     rpm = appHand.RPMSpeed_Cmd;
     heater = appHand.Heater_Cmd;
     pump = appHand.Pump_Cmd;
@@ -96,6 +96,8 @@ function returnVal = getValuesFromApp(appHand)
     Pump_ROP_Speed_Cmd = appHand.Pump_ROP_Speed_Cmd;
     Extraction_ROP_Direction_Cmd = appHand.Extraction_ROP_Direction_Cmd;
     Pump_ROP_Direction_Cmd = appHand.Pump_ROP_Direction_Cmd;
+    Mirage_Speed_Cmd = appHand.Mirage_Speed_Cmd;
+    Mirage_Direction_Cmd = appHand.Mirage_Direction_Cmd;
     if (tare == 1)
         appHand.Tare_Cmd = 0; %reset tare to 0 in app
     end
@@ -105,8 +107,8 @@ function returnVal = getValuesFromApp(appHand)
         + drillCmd + "," + WOBsetpoint + "," + Kp_Drill + "," + Ki_Drill + "," + Kd_Drill+ "," ...
         + Kp_Heater + "," + Ki_Heater + "," + Kd_Heater + "," + TemperatureSetpoint + "," ...
         + HeaterPowerSetpoint + "," + Extraction_ROP_Speed_Cmd + "," + Pump_ROP_Speed_Cmd + "," ...
-        + Extraction_ROP_Direction_Cmd + "," + Pump_ROP_Direction_Cmd;
-    
+        + Extraction_ROP_Direction_Cmd + "," + Pump_ROP_Direction_Cmd + "," ...
+        + Mirage_Speed_Cmd + "," + Mirage_Direction_Cmd;
 end
 
 function readSerialData(src,~)
@@ -116,31 +118,31 @@ function readSerialData(src,~)
     dataRecieved = true;
 end
 
-function setAppData(appHandle, dataArray)
-    WOB = round(str2double(dataArray(1)), 2);
-    drillRPM = round(str2double(dataArray(2)), 2);
-    drillCurrent = round(str2double(dataArray(3)), 2); 
-    drillPos = round(str2double(dataArray(4)), 2);
-    mirageAngle = round(str2double(dataArray(5)), 2);
-    limitSwitchReached = str2double(dataArray(6));
-    MSE = round(str2double(dataArray(7)), 2);
-    heaterTemp = round(str2double(dataArray(8)), 2);
-    heaterPower = round(str2double(dataArray(9)), 2);
+function setAppData(appHandle, dataArray) %LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp
+%     WOB = round(str2double(dataArray(1)), 1);
+%     drillRPM = round(str2double(dataArray(2)), 1);
+%     drillCurrent = round(str2double(dataArray(3)), 1); 
+%     drillPos = round(str2double(dataArray(4)), 1);
+%     mirageAngle = round(str2double(dataArray(5)), 1);
+%     limitSwitchReached = str2double(dataArray(6));
+%     MSE = round(str2double(dataArray(7)), 1);
+%     heaterTemp = round(str2double(dataArray(8)), 1);
+%     heaterPower = round(str2double(dataArray(9)), 1);
     %-----send to app-----
-    appHandle.WOBNEditField.Value = WOB;
-    appHandle.DrillRPMEditField.Value = drillRPM;
-    appHandle.DrillPosmmEditField.Value = drillPos;
-    appHandle.MiragePosdegEditField.Value = mirageAngle;
-    appHandle.DrillCurrentAEditField.Value = drillCurrent;
-    appHandle.HeaterPowerEditField.Value = heaterPower;
-    appHandle.HeaterTempEditField.Value = heaterTemp;
-    appHandle.MSEEditField.Value = MSE;
+%     appHandle.WOBNEditField.Value = WOB;
+%     appHandle.DrillRPMEditField.Value = drillRPM;
+%     appHandle.DrillPosmmEditField.Value = drillPos;
+%     appHandle.MiragePosdegEditField.Value = mirageAngle;
+%     appHandle.DrillCurrentAEditField.Value = drillCurrent;
+%     appHandle.HeaterPowerEditField.Value = heaterPower;
+%     appHandle.HeaterTempEditField.Value = heaterTemp;
+%     appHandle.MSEEditField.Value = MSE;
     
-    if (limitSwitchReached == 1) 
-        appHandle.LimitSwitchReachedLamp.Color = [0,1,0]; %rgb
-    else
-        appHandle.LimitSwitchReachedLamp.Color = [1,1,1];
-    end
+%     if (limitSwitchReached == 1) 
+%         appHandle.LimitSwitchReachedLamp.Color = [0,1,0]; %rgb
+%     else
+%         appHandle.LimitSwitchReachedLamp.Color = [1,1,1];
+%     end
 end
 
 
