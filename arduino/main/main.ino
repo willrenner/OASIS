@@ -235,13 +235,13 @@ void sendDataOut() {
     Serial.print(",");
     Serial.print(drillCurrent, 2);
     Serial.print(",");
-    Serial.print(cmds.HeaterPowerSetpoint, 2);
+    Serial.print(cmds.HeaterPowerSetpoint);
     Serial.print(",");
     Serial.print(heaterTemperature, 2);
     Serial.print(",");
-    Serial.print(DrillStepper.currentPosition() * 8/400, 2); //  8/400 is ratio to get from steps to mm
+    Serial.print(DrillStepper.currentPosition() * 8/400.0, 2); //  8/400 is ratio to get from steps to mm
     Serial.print(",");
-    Serial.print(ExtractionStepper.currentPosition() * 8/400, 2);
+    Serial.print(ExtractionStepper.currentPosition() * 8/400.0, 2);
     Serial.print(",");
     Serial.print("\n"); //serial terminator
 }
