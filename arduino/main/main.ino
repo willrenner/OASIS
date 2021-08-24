@@ -219,7 +219,7 @@ void loop() {
     DrillStepper.runSpeed();   
     PumpStepper.runSpeed();
     ExtractionStepper.runSpeed();
-    heaterTemperature = (float)thermocouple.readCelsius() * 1.8 + 32;
+    heaterTemperature = (float)thermocouple.readFahrenheit();
     doHousekeeping();
 }
 
