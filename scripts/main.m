@@ -8,7 +8,7 @@ global running;
 running = true;
 % addpath('../../app'); %to be able to run next line to open app
 appHandle = arduinoApp;
-serialPort = serialport("COM3", 115200);
+serialPort = serialport("COM4", 115200);
 configureTerminator(serialPort,"LF"); %sets newline as line ending
 flush(serialPort); %so that data doesnt get clogged/backed up
 configureCallback(serialPort,"terminator",@readSerialData)
@@ -27,6 +27,7 @@ while(running)
         if (changed)
             linetowrite = getValuesFromApp(appHandle);
             writeline(serialPort, linetowrite);
+            disp("Sent data");
             changed = false;
         end
         if (dataRecieved)
@@ -34,7 +35,7 @@ while(running)
             dataArray = strsplit(data, ',');
             sizeOfArr = size(dataArray);
             if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
-                fprintf("LoadCellLeftValue: %4.2f, LoadCellRightValue: %4.2f, DrillCurrent: %4.2f, HeaterPower: %4.2f, HeaterTemp: %4.2f, DrillPos: %4.2f, Extr. Pos: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7));
+                %fprintf("LoadCellLeftValue: %4.2f, LoadCellRightValue: %4.2f, DrillCurrent: %4.2f, HeaterPower: %4.2f, HeaterTemp: %4.2f, DrillPos: %4.2f, Extr. Pos: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7));
                 incomingData = sprintf("LoadCellLeftValue: %4.2f \nLoadCellRightValue: %4.2f \nDrillCurrent: %4.2f \nHeaterPower: %4.f \nHeaterTemp: %4.2f \nDrillPos: %4.2f \nExtr.Pos: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7));
                 appHandle.IncomingDataLabel.Text = incomingData; 
                 %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
@@ -42,8 +43,10 @@ while(running)
                 setAppData(appHandle, dataArray); %change data in app
                 writeDataToFile(dataArray, fileID) %log to file
             else %meaning Serial debug statment, and not data array
-                disp("Message from arduino: ");
-                disp(data);
+                %disp("Message from arduino: ");
+                %disp(data);
+                appHandle.IncomingDebugDataLabel.Text = data; 
+                appHandle.IncomingDebugDataLabel_2.Text = data; 
             end
             dataRecieved = false;
         end
@@ -73,7 +76,7 @@ function returnVal = getValuesFromApp(appHand)
     %DrillZeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill,
     %Kd_Drill, Kp_Heater, Ki_Heater,Kd_Heater, TemperatureSetpoint,
     %HeaterPowerSetpoint, Extraction_ROP_Speed_Cmd, Pump_ROP_Speed_Cmd,
-    %Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd, Mirage_Speed_Cmd, Mirage_Direction_Cmd, ExtractionZeroCmd]
+    %Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd, Mirage_Speed_Cmd, Mirage_Direction_Cmd, ExtractionZeroCmd, DrillPower]
     drillCmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
@@ -101,6 +104,7 @@ function returnVal = getValuesFromApp(appHand)
     Mirage_Speed_Cmd = appHand.Mirage_Speed_Cmd;
     Mirage_Direction_Cmd = appHand.Mirage_Direction_Cmd;
     ExtractionZeroCmd = appHand.ExtractionZero_Cmd;
+    DrillPower = appHand.DrillPower;
     if (tare == 1)
         appHand.Tare_Cmd = 0; %reset to 0 in app
     end
@@ -117,7 +121,7 @@ function returnVal = getValuesFromApp(appHand)
         + Kp_Heater + "," + Ki_Heater + "," + Kd_Heater + "," + TemperatureSetpoint + "," ...
         + HeaterPowerSetpoint + "," + Extraction_ROP_Speed_Cmd + "," + Pump_ROP_Speed_Cmd + "," ...
         + Extraction_ROP_Direction_Cmd + "," + Pump_ROP_Direction_Cmd + "," ...
-        + Mirage_Speed_Cmd + "," + Mirage_Direction_Cmd + "," + ExtractionZeroCmd;
+        + Mirage_Speed_Cmd + "," + Mirage_Direction_Cmd + "," + ExtractionZeroCmd + "," + DrillPower;
 end
 
 function readSerialData(src,~)
