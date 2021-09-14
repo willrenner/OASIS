@@ -8,12 +8,11 @@ global running;
 running = true;
 % addpath('../../app'); %to be able to run next line to open app
 appHandle = arduinoApp;
-serialPort = serialport("COM4", 115200);
+serialPort = serialport("COM3", 115200);
 configureTerminator(serialPort,"LF"); %sets newline as line ending
 flush(serialPort); %so that data doesnt get clogged/backed up
 configureCallback(serialPort,"terminator",@readSerialData)
-fileID = fopen("../logs/run1.txt", 'a'); %appends to end of file, or creates file and writes to it
-% hWaitbar = waitbar(0, 'Running...', 'Name', 'AARC','CreateCancelBtn','delete(gcbf)');
+fileID = fopen("../logs/logTest1.txt", 'a'); %appends to end of file, or creates file and writes to it
 changed = false;
 changedTimer = tic;
 count = 0;
@@ -27,19 +26,17 @@ while(running)
         if (changed)
             linetowrite = getValuesFromApp(appHandle);
             writeline(serialPort, linetowrite);
-            disp("Sent data");
+%             disp("Sent data");
             changed = false;
         end
         if (dataRecieved)
-            %indecies =====> LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp ... update as needed
+            %indecies =====> LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos,LoadCellCombined ... update as needed
             dataArray = strsplit(data, ',');
             sizeOfArr = size(dataArray);
             if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
                 %fprintf("LoadCellLeftValue: %4.2f, LoadCellRightValue: %4.2f, DrillCurrent: %4.2f, HeaterPower: %4.2f, HeaterTemp: %4.2f, DrillPos: %4.2f, Extr. Pos: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7));
-                incomingData = sprintf("LoadCellLeftValue: %4.2f \nLoadCellRightValue: %4.2f \nDrillCurrent: %4.2f \nHeaterPower: %4.f \nHeaterTemp: %4.2f \nDrillPos: %4.2f \nExtr.Pos: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7));
+                incomingData = sprintf("LoadCellLeftValue: %4.2f \nLoadCellRightValue: %4.2f \nDrillCurrent: %4.2f \nHeaterPower: %4.f \nHeaterTemp: %4.2f \nDrillPos: %4.2f \nExtr.Pos: %4.2f \nMirage.Pos: %4.2f \nLoad Cell Combined: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7),dataArray(8),dataArray(9));
                 appHandle.IncomingDataLabel.Text = incomingData; 
-                %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare]
-                %fprintf("CmdMode: %2.0f, DirectionCmd: %2.0f, SpeedCmd: %7.2f, MirageAngleCmd: %7.2f, RPM_Cmd: %7.2f, HeaterCmd: %2.0f, PumpCmd: %2.0f, TareCmd: %2.0f, DrillCmd: %2.0f\n",dataArray(7),dataArray(8),dataArray(9),dataArray(10),dataArray(11), dataArray(12), dataArray(13), dataArray(14), dataArray(15));
                 setAppData(appHandle, dataArray); %change data in app
                 writeDataToFile(dataArray, fileID) %log to file
             else %meaning Serial debug statment, and not data array
@@ -65,18 +62,14 @@ clear all;
 
 
 function writeDataToFile(da, fid)
-%     t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
-%     p = posixtime(t);
-% %   coming in from arduino: [WOB, drillRPM, drillCurrent, drillPos, mirageAngle, drillLimitSwitchActive, MSE, heaterTemp,heaterPower]
-%     fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6),da(7),da(8),da(9)); % Write to file  
+    t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
+    p = posixtime(t);
+    %coming in from arduino: LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos
+    fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6),da(7),da(8)); % Write to file  
 end
 
 function returnVal = getValuesFromApp(appHand) 
-    %[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare,
-    %DrillZeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill,
-    %Kd_Drill, Kp_Heater, Ki_Heater,Kd_Heater, TemperatureSetpoint,
-    %HeaterPowerSetpoint, Extraction_ROP_Speed_Cmd, Pump_ROP_Speed_Cmd,
-    %Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd, Mirage_Speed_Cmd, Mirage_Direction_Cmd, ExtractionZeroCmd, DrillPower]
+    
     drillCmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
@@ -114,7 +107,7 @@ function returnVal = getValuesFromApp(appHand)
      if (DrillZeroCmd == 1)
         appHand.DrillZero_Cmd = 0; %reset to 0 in app
     end
-    
+%     display("pumpdir " + Pump_ROP_Direction_Cmd);
     returnVal = drillCmdMode + "," + dir + "," + speed + "," + miragePosition + "," ...
         + rpm + "," + heater + "," + pump + "," + tare + "," + DrillZeroCmd + "," + fakeZero + "," ...
         + drillCmd + "," + WOBsetpoint + "," + Kp_Drill + "," + Ki_Drill + "," + Kd_Drill+ "," ...
@@ -123,6 +116,11 @@ function returnVal = getValuesFromApp(appHand)
         + Extraction_ROP_Direction_Cmd + "," + Pump_ROP_Direction_Cmd + "," ...
         + Mirage_Speed_Cmd + "," + Mirage_Direction_Cmd + "," + ExtractionZeroCmd + "," + DrillPower;
 end
+%[drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare,
+    %DrillZeroCmd, fakeZeroAcitve, drillCmd, WOBsetpoint, Kp_Drill, Ki_Drill,
+    %Kd_Drill, Kp_Heater, Ki_Heater,Kd_Heater, TemperatureSetpoint,
+    %HeaterPowerSetpoint, Extraction_ROP_Speed_Cmd, Pump_ROP_Speed_Cmd,
+    %Extraction_ROP_Direction_Cmd, Pump_ROP_Direction_Cmd, Mirage_Speed_Cmd, Mirage_Direction_Cmd, ExtractionZeroCmd, DrillPower]
 
 function readSerialData(src,~)
     global data;

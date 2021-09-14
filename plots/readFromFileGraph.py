@@ -9,7 +9,9 @@ pg.setConfigOption('background', (13, 0.00, 50))
 pg.setConfigOption('foreground', 'w')
 win = pg.GraphicsLayoutWidget(show=True)
 win.setWindowTitle('AARC Telem')
-fName = './logs/run1.txt'
+# fName = './logs/abcd.txt'
+fName = 'C:/Users/willr/Desktop/OASIS/logs/logTest1.txt'
+
 dataArray = []
 timeArray = []
 y1Array = []
@@ -19,6 +21,8 @@ y4Array = []
 y5Array = []
 y6Array = []
 y7Array = []
+y8Array = []
+
 
 TS_MULT_us = 1e6
 
@@ -33,7 +37,7 @@ class TimeAxisItem(pg.AxisItem):
 def int2dt(ts, ts_mult=TS_MULT_us): #makes string from a value for the tick mark
     return(datetime.datetime.fromtimestamp(float(ts)/ts_mult)) #ts is posix time in seconds times 1e6
 
-
+#LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos
 # ---------------------------------------------------------------------------------------------------------------
 pg.setConfigOptions(antialias=True)
 tai_WOB = TimeAxisItem(orientation='bottom')
@@ -79,7 +83,7 @@ def update_DrillRPM():
 # ---------------------------------------------------------------------------------------------------------------
 tai_DrillXpos = TimeAxisItem(orientation='bottom')
 tai_DrillXpos.enableAutoSIPrefix(enable=False)
-plot_DrillXpos = win.addPlot(row=2, col=0, labels={'left': "Drill X-Position From Limit Switch (mm)"}, axisItems={
+plot_DrillXpos = win.addPlot(row=2, col=0, labels={'left': "Drill Z-Position (mm)"}, axisItems={
     'bottom': tai_DrillXpos}, title="Drill Z-Position (enitre history)")
 # Use automatic downsampling and clipping to reduce the drawing load
 plot_DrillXpos.setDownsampling(mode='peak')
@@ -88,8 +92,8 @@ plot_DrillXpos.setMouseEnabled(y=False)
 curve_DrillXpos = plot_DrillXpos.plot(pen=pg.mkPen('w', width=3))
 
 
-def update_DrillXpos():
-    curve_DrillXpos.setData(x=timeArray, y=y4Array)
+def update_DrillZpos():
+    curve_DrillXpos.setData(x=timeArray, y=y6Array)
 # ---------------------------------------------------------------------------------------------------------------
 tai_MirageAngle = TimeAxisItem(orientation='bottom')
 tai_MirageAngle.enableAutoSIPrefix(enable=False)
@@ -103,19 +107,19 @@ curve_MirageAngle = plot_MirageAngle.plot(pen=pg.mkPen('w', width=3))
 
 
 def update_MirageAngle():
-    curve_MirageAngle.setData(x=timeArray, y=y5Array)
+    curve_MirageAngle.setData(x=timeArray, y=y8Array)
 # ---------------------------------------------------------------------------------------------------------------
-tai_LimSwitch = TimeAxisItem(orientation='bottom')
-tai_LimSwitch.enableAutoSIPrefix(enable=False)
-plot_LimSwitch = win.addPlot(row=3, col=0, labels={'left': "Limit Switch Active (bool)"}, axisItems={
-    'bottom': tai_LimSwitch}, title="Limit Switch Activity (enitre history)")
+tai_ExtraZPos = TimeAxisItem(orientation='bottom')
+tai_ExtraZPos.enableAutoSIPrefix(enable=False)
+plot_ExtraZPos = win.addPlot(row=3, col=0, labels={'left': "Extraction Z-Position (mm)"}, axisItems={
+    'bottom': tai_ExtraZPos}, title="Extraction Z-Position (enitre history)")
 # Use automatic downsampling and clipping to reduce the drawing load
-plot_LimSwitch.setDownsampling(mode='peak')
-plot_LimSwitch.setClipToView(True)
-plot_LimSwitch.setMouseEnabled(y=False)
-curve_LimSwitch = plot_LimSwitch.plot(pen=pg.mkPen('w', width=3))
-def update_LimSwitch():
-    curve_LimSwitch.setData(x=timeArray, y=y6Array)
+plot_ExtraZPos.setDownsampling(mode='peak')
+plot_ExtraZPos.setClipToView(True)
+plot_ExtraZPos.setMouseEnabled(y=False)
+curve_ExtraZPos = plot_ExtraZPos.plot(pen=pg.mkPen('w', width=3))
+def update_ExtraZPos():
+    curve_ExtraZPos.setData(x=timeArray, y=y7Array)
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -149,7 +153,7 @@ def update_MSE():
     curve_MSE.setData(x=timeArray, y=y7Array)
 # ---------------------------------------------------------------------------------------------------------------
 
-
+#LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos
 def readLastLine():  # actually gets second to last line b/c last line might not be finished from matlab
     with open(fName, "rb") as file:  # binary mode, must do this to start at end of file
         lineNumber = 0  # from bottom
@@ -164,13 +168,14 @@ def readLastLine():  # actually gets second to last line b/c last line might not
         good, trash = file.readline().decode().split("\r\n")
         dataArray = good.split(" ")
         timeArray.append(int(float(dataArray[0]) * TS_MULT_us))
-        y1Array.append(float(dataArray[1]))
+        y1Array.append(float(dataArray[1])*2)
         y2Array.append(float(dataArray[2]))
         y3Array.append(float(dataArray[3]))
         y4Array.append(float(dataArray[4]))
         y5Array.append(float(dataArray[5]))
         y6Array.append(float(dataArray[6]))
         y7Array.append(float(dataArray[7]))
+        y8Array.append(float(dataArray[8]))
 
 
 
@@ -179,9 +184,9 @@ def update():
     update_WOB1()
     update_WOB2()
     update_DrillRPM()
-    update_DrillXpos()
+    update_DrillZpos()
     update_MirageAngle()
-    update_LimSwitch()
+    update_ExtraZPos()
     update_DrillCurrent()
     update_MSE()
 
