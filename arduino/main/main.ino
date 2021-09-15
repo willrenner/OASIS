@@ -8,6 +8,7 @@
 
 #define PID_SERIAL_LOGGER true
 #define PUMPCMDS_SERIAL_LOGGER false
+
 struct controlCommands {
     int drillControlMode; // 1 for manual rop control, 0 for automatic (pid)
     int drillMovementDirection;
@@ -97,7 +98,6 @@ const int LoadCellRightClock = 42;
 #define servoPin 12
 
 
-#define currentSensorRate 120
 #define RPMsensor_interupt_pin 18 // interupt pin (On arduino Mega pins 2, 3, 18, 19, 20,& 21 can be used for interupts)
 #define stepsPerRev 200 // (per rev) steps/rev, 1.8deg/step
 #define leadScrewLead 8 // mm/rev
@@ -137,9 +137,11 @@ char* arrayOfcstring[numCmds];
 char* myPointer;
 
 //Amp array
-#define ampArraySize 20
-float ampArray[ampArraySize];
+#define currentSensorRate 240
+float ampArray[currentSensorRate]; //1 sec per final reading
 int ampCounter = 0;
+int16_t ads1115Results;
+float meanSquaredSum = 0;
 
 float MSE = 0;
 float augerArea = PI * pow(0.04, 2);
@@ -512,16 +514,26 @@ void fpsCounter() {
 }
 
 bool getCurrentSensorValue(void*) { //analog read is slow
-//  int16_t results;
-//
-//  results = ads1115.readADC_Differential_0_1();
-//  drillCurrent = (float)results*3*30/1000;
+    if (ampCounter >= currentSensorRate){
+        //do rms
+        
+        ampCounter = 0;
+    }
+    ads1115Results = ads1115.readADC_Differential_0_1();
+    drillCurrent = (float) results*3*30/1000; //convert mV to Amps, 30A = 1V on ads1115
+    meanSquaredSum += drillCurrent*drillCurrent;
+    ampCounter++;
+
+
 //  Serial.print("Differential: "); Serial.print(results); Serial.print("("); Serial.print(results * 3); Serial.print("mV)");
 //  Serial.print(" Amps: ");
 //  Serial.println(drillCurrent,2);
-  
   return true;
 }
+// #define currentSensorRate 240
+// float ampArray[currentSensorRate]; //1 sec per final reading
+// int ampCounter = 0;
+
 bool getLoadCells(void*) {
     if (LoadCellLeft.update()) LoadCellLeftValue = LoadCellLeft.getData(); //this is slow culprit
     if (LoadCellRight.update()) LoadCellRightValue = LoadCellRight.getData(); //this is slow culprit
