@@ -3,8 +3,8 @@ from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
 import os
 import datetime
-
-
+import collections
+#deque
 pg.setConfigOption('background', (13, 0.00, 50))
 pg.setConfigOption('foreground', 'w')
 win = pg.GraphicsLayoutWidget(show=True)
