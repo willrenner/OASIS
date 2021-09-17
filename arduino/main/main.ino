@@ -137,11 +137,12 @@ char* arrayOfcstring[numCmds];
 char* myPointer;
 
 //Amp array
-#define currentSensorRate 240
-float ampArray[currentSensorRate]; //1 sec per final reading
+#define currentSensorRate 5//240
+// float ampArray[currentSensorRate]; //1 sec per final reading
 int ampCounter = 0;
 int16_t ads1115Results;
-float meanSquaredSum = 0;
+float peakCurrent = 0;
+float totalSystemCurrent = 0;
 
 float MSE = 0;
 float augerArea = PI * pow(0.04, 2);
@@ -185,13 +186,13 @@ auto HeaterTimer = timer_create_default();
 void setup() {
     delay(1000);
     servo.attach(servoPin);
-    amptimer.every(((float)1 / currentSensorRate) * 1000, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
+    amptimer.every(200, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
     LoadCellTimer.every(100, getLoadCells); //calls func every set period, don't want to call every loop b/c analog read is slow
     HeaterTimer.every(heaterDt, setHeaterPower);
     setupLoadCells();
     Serial.println("Getting differential reading from AIN0 (P) and AIN1 (N)");
     Serial.println("ADC Range: +/- 6.144V (1 bit = 3mV)");
-//    ads1115.begin();
+   ads1115.begin();
 
     pinMode(RPMsensor_interupt_pin, INPUT);
     pinMode(limitSwitchPin, INPUT);
@@ -239,7 +240,7 @@ void loop() {
 }
 
 void sendDataOut() {
-    //LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined ----- ACTIVE
+    //LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined ----- ACTIVE
 
     // drillPos = DrillStepper.currentPosition() * drillStepperRatio; //to get mm
     // mirageAngle = MirageStepper.currentPosition();
@@ -247,7 +248,7 @@ void sendDataOut() {
     Serial.print(",");
     Serial.print(LoadCellRightValue, 2);
     Serial.print(",");
-    Serial.print(drillCurrent, 2);
+    Serial.print(totalSystemCurrent, 2);
     Serial.print(",");
     Serial.print(cmds.HeaterPowerSetpoint);
     Serial.print(",");
@@ -514,17 +515,18 @@ void fpsCounter() {
 }
 
 bool getCurrentSensorValue(void*) { //analog read is slow
-    if (ampCounter >= currentSensorRate){
-        //do rms
-        
+    if (ampCounter > currentSensorRate) {
+        totalSystemCurrent = 0.707 * peakCurrent;
         ampCounter = 0;
+        peakCurrent = 0;
     }
+
     ads1115Results = ads1115.readADC_Differential_0_1();
-    drillCurrent = (float) results*3*30/1000; //convert mV to Amps, 30A = 1V on ads1115
-    meanSquaredSum += drillCurrent*drillCurrent;
+    drillCurrent = (float)ads1115Results * 3 * 30 / 1000; //convert mV to Amps, 30A = 1V on ads1115
+    if (drillCurrent > peakCurrent) {
+        peakCurrent = drillCurrent;
+    }
     ampCounter++;
-
-
 //  Serial.print("Differential: "); Serial.print(results); Serial.print("("); Serial.print(results * 3); Serial.print("mV)");
 //  Serial.print(" Amps: ");
 //  Serial.println(drillCurrent,2);

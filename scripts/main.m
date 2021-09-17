@@ -30,12 +30,13 @@ while(running)
             changed = false;
         end
         if (dataRecieved)
-            %indecies =====> LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos,LoadCellCombined ... update as needed
+            %indecies =====>     //LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined ----- ACTIVE
+
             dataArray = strsplit(data, ',');
             sizeOfArr = size(dataArray);
             if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
                 %fprintf("LoadCellLeftValue: %4.2f, LoadCellRightValue: %4.2f, DrillCurrent: %4.2f, HeaterPower: %4.2f, HeaterTemp: %4.2f, DrillPos: %4.2f, Extr. Pos: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7));
-                incomingData = sprintf("LoadCellLeftValue: %4.2f \nLoadCellRightValue: %4.2f \nDrillCurrent: %4.2f \nHeaterPower: %4.f \nHeaterTemp: %4.2f \nDrillPos: %4.2f \nExtr.Pos: %4.2f \nMirage.Pos: %4.2f \nLoad Cell Combined: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7),dataArray(8),dataArray(9));
+                incomingData = sprintf("LoadCellLeftValue: %4.2f \nLoadCellRightValue: %4.2f \nTotalCurrent: %4.2f \nHeaterPower: %4.f \nHeaterTemp: %4.2f \nDrillPos: %4.2f \nExtr.Pos: %4.2f \nMirage.Pos: %4.2f \nLoad Cell Combined: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7),dataArray(8),dataArray(9));
                 appHandle.IncomingDataLabel.Text = incomingData; 
                 setAppData(appHandle, dataArray); %change data in app
                 writeDataToFile(dataArray, fileID) %log to file
@@ -64,7 +65,8 @@ clear all;
 function writeDataToFile(da, fid)
     t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
     p = posixtime(t);
-    %coming in from arduino: LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos
+    %coming in from arduino:     //LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined ----- ACTIVE
+
     fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6),da(7),da(8)); % Write to file  
 end
 
@@ -129,7 +131,8 @@ function readSerialData(src,~)
     dataRecieved = true;
 end
 
-function setAppData(appHandle, dataArray) %LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp
+function setAppData(appHandle, dataArray) %    //LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined ----- ACTIVE
+
 %     WOB = round(str2double(dataArray(1)), 1);
 %     drillRPM = round(str2double(dataArray(2)), 1);
 %     drillCurrent = round(str2double(dataArray(3)), 1); 
