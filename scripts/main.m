@@ -66,7 +66,6 @@ function writeDataToFile(da, fid)
     t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
     p = posixtime(t);
     %coming in from arduino:     //LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined ----- ACTIVE
-
     fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6),da(7),da(8)); % Write to file  
 end
 

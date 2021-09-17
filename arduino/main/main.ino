@@ -260,7 +260,7 @@ void sendDataOut() {
     Serial.print(",");
     Serial.print(MirageStepper.currentPosition(), 2); // in # of steps
     Serial.print(",");
-    Serial.print(LoadCellCombined, 2); // in # of steps
+    Serial.print(LoadCellCombined, 2); 
     Serial.print("\n"); //serial terminator
 }
 void serialEvent() {

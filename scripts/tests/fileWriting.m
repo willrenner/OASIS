@@ -1,6 +1,6 @@
 clc;clear;
 hWaitbar = waitbar(0, 'Running...', 'Name', 'AARC','CreateCancelBtn','delete(gcbf)');
-fileID = fopen("../../logs/lineSize.txt", 'a'); %appends to end of file, or creates file and writes to it
+fileID = fopen("../../logs/logTest1.txt", 'a'); %appends to end of file, or creates file and writes to it
 format shortg; %smart formating
 pause on
 
@@ -14,7 +14,8 @@ while (a < 1500000)
     c = clock;
     t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
     p = posixtime(t);
-    fprintf(fileID,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,rand(),rand(),rand(),rand(),rand(),rand()); % Write to file  
+%     fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6),da(7),da(8)); % Write to file  
+    fprintf(fileID,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,rand(),rand(),rand(),rand(),rand(),rand(),rand(),rand(),rand()); % Write to file  
 %     fprintf(fileID,'%.2f %.2f\r\n',c, y); % Write to file  
 %     fprintf(fileID,'%i-%i-%i-%i-%i-%2.3f %.2f\r\n',c, y); % Write to file
     if (toc >= 1)

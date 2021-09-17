@@ -10,7 +10,13 @@ pg.setConfigOption('foreground', 'w')
 win = pg.GraphicsLayoutWidget(show=True)
 win.setWindowTitle('AARC Telem')
 # fName = './logs/abcd.txt'
-fName = 'C:/Users/willr/Desktop/OASIS/logs/logTest1.txt'
+# fName = 'C:/Users/willr/Desktop/OASIS/logs/logTest1.txt'
+fName = 'C:/Users/Will/Desktop/OASIS/logs/logTest1.txt'
+# LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined
+
+numSeconds = 20  # sec
+timerTime = 100  # ms
+numDataPoints = int(numSeconds / (timerTime / 1000))
 
 dataArray = []
 timeArray = []
@@ -22,9 +28,11 @@ y5Array = []
 y6Array = []
 y7Array = []
 y8Array = []
-
+y9Array = []
 
 TS_MULT_us = 1e6
+
+
 
 class TimeAxisItem(pg.AxisItem):
     def __init__(self, *args, **kwargs):
@@ -42,106 +50,131 @@ def int2dt(ts, ts_mult=TS_MULT_us): #makes string from a value for the tick mark
 pg.setConfigOptions(antialias=True)
 tai_WOB = TimeAxisItem(orientation='bottom')
 plot_WOB = win.addPlot(row=0, col=0, labels={'left': "WOB (N)"}, axisItems={
-    'bottom': tai_WOB}, title="WOB Plot (last 10 seconds)")
+    'bottom': tai_WOB}, title="WOB Plot (last " + str(numSeconds) + " seconds)")
 tai_WOB.enableAutoSIPrefix(enable=False)
 plot_WOB.setMouseEnabled(y=False)
 curve_WOB = plot_WOB.plot(pen=pg.mkPen('w', width=3))
 ptr_WOB = 0
 def update_WOB1():
     global ptr_WOB
-    readLastLine()
     ptr_WOB += 1
-    curve_WOB.setData(x=timeArray[-100:], y=y1Array[-100:])
+    curve_WOB.setData(x=timeArray[-numDataPoints:], y=y1Array[-numDataPoints:])
     curve_WOB.setPos(ptr_WOB, 0)
 
 # ---------------------------------------------------------------------------------------------------------------
-tai_WOB2 = TimeAxisItem(orientation='bottom')
-tai_WOB2.enableAutoSIPrefix(enable=False)
-plot_WOB2 = win.addPlot(row=0, col=1, labels={'left': "WOB (N)"}, axisItems={
-    'bottom': tai_WOB2}, title="WOB Plot (enitre history)")
+tai_HeaterTemp = TimeAxisItem(orientation='bottom')
+tai_HeaterTemp.enableAutoSIPrefix(enable=False)
+plot_HeaterTemp = win.addPlot(row=0, col=1, labels={'left': "Heater Temp (F)"}, axisItems={
+    'bottom': tai_HeaterTemp}, title="Heater Temp Plot")
 # Use automatic downsampling and clipping to reduce the drawing load
-plot_WOB2.setDownsampling(mode='peak')
-plot_WOB2.setClipToView(True)
-plot_WOB2.setMouseEnabled(y=False)
-curve_WOB2 = plot_WOB2.plot(pen=pg.mkPen('w', width=3))
-def update_WOB2():
-    curve_WOB2.setData(x=timeArray, y=y1Array)
+plot_HeaterTemp.setDownsampling(mode='peak')
+plot_HeaterTemp.setClipToView(True)
+plot_HeaterTemp.setMouseEnabled(y=False)
+curve_HeaterTemp = plot_HeaterTemp.plot(pen=pg.mkPen('w', width=3))
+ptr_HeaterTemp = 0
+def update_HeaterTemp():
+    global ptr_HeaterTemp
+    ptr_HeaterTemp += 1
+    curve_HeaterTemp.setData(x=timeArray[-numDataPoints:],
+                       y=y4Array[-numDataPoints:])
+    curve_HeaterTemp.setPos(ptr_HeaterTemp, 0)
 # ---------------------------------------------------------------------------------------------------------------
-tai_DrillRPM = TimeAxisItem(orientation='bottom')
-tai_DrillRPM.enableAutoSIPrefix(enable=False)
-plot_DrillRPM = win.addPlot(row=1, col=0, labels={'left': "Drill RPM"}, axisItems={
-    'bottom': tai_DrillRPM}, title="Drill RPM (enitre history)")
+tai_HeaterPower = TimeAxisItem(orientation='bottom')
+tai_HeaterPower.enableAutoSIPrefix(enable=False)
+plot_HeaterPower = win.addPlot(row=1, col=0, labels={'left': "HeaterPower (%)"}, axisItems={
+    'bottom': tai_HeaterPower}, title="HeaterPower")
 # Use automatic downsampling and clipping to reduce the drawing load
-plot_DrillRPM.setDownsampling(mode='peak')
-plot_DrillRPM.setClipToView(True)
-plot_DrillRPM.setMouseEnabled(y=False)
-curve_DrillRPM = plot_DrillRPM.plot(pen=pg.mkPen('w', width=3))
+plot_HeaterPower.setDownsampling(mode='peak')
+plot_HeaterPower.setClipToView(True)
+plot_HeaterPower.setMouseEnabled(y=False)
+curve_HeaterPower = plot_HeaterPower.plot(pen=pg.mkPen('w', width=3))
 
-
-def update_DrillRPM():
-    curve_DrillRPM.setData(x=timeArray, y=y2Array)
+ptr_HeaterPower = 0
+def update_HeaterPower():
+    global ptr_HeaterPower
+    ptr_HeaterPower += 1
+    curve_HeaterPower.setData(x=timeArray[-numDataPoints:],
+                       y=y5Array[-numDataPoints:])
+    curve_HeaterPower.setPos(ptr_HeaterPower, 0)
 # ---------------------------------------------------------------------------------------------------------------
-tai_DrillXpos = TimeAxisItem(orientation='bottom')
-tai_DrillXpos.enableAutoSIPrefix(enable=False)
-plot_DrillXpos = win.addPlot(row=2, col=0, labels={'left': "Drill Z-Position (mm)"}, axisItems={
-    'bottom': tai_DrillXpos}, title="Drill Z-Position (enitre history)")
+tai_DrillZPos = TimeAxisItem(orientation='bottom')
+tai_DrillZPos.enableAutoSIPrefix(enable=False)
+plot_DrillZPos = win.addPlot(row=2, col=0, labels={'left': "Drill Z-Position (mm)"}, axisItems={
+    'bottom': tai_DrillZPos}, title="Drill Z-Position")
 # Use automatic downsampling and clipping to reduce the drawing load
-plot_DrillXpos.setDownsampling(mode='peak')
-plot_DrillXpos.setClipToView(True)
-plot_DrillXpos.setMouseEnabled(y=False)
-curve_DrillXpos = plot_DrillXpos.plot(pen=pg.mkPen('w', width=3))
+plot_DrillZPos.setDownsampling(mode='peak')
+plot_DrillZPos.setClipToView(True)
+plot_DrillZPos.setMouseEnabled(y=False)
+curve_DrillZPos = plot_DrillZPos.plot(pen=pg.mkPen('w', width=3))
 
-
+ptr_Drill = 0
 def update_DrillZpos():
-    curve_DrillXpos.setData(x=timeArray, y=y6Array)
+    global ptr_Drill
+    ptr_Drill += 1
+    curve_DrillZPos.setData(x=timeArray[-numDataPoints:],
+                       y=y6Array[-numDataPoints:])
+    curve_DrillZPos.setPos(ptr_Drill, 0)
 # ---------------------------------------------------------------------------------------------------------------
 tai_MirageAngle = TimeAxisItem(orientation='bottom')
 tai_MirageAngle.enableAutoSIPrefix(enable=False)
-plot_MirageAngle = win.addPlot(row=2, col=1, labels={'left': "Mirage Angle (deg)"}, axisItems={
-    'bottom': tai_MirageAngle}, title="Mirage Angle From Start Position (enitre history)")
+plot_MirageAngle = win.addPlot(row=2, col=1, labels={'left': "Mirage Angle (steps)"}, axisItems={
+    'bottom': tai_MirageAngle}, title="Mirage Angle")
 # Use automatic downsampling and clipping to reduce the drawing load
 plot_MirageAngle.setDownsampling(mode='peak')
 plot_MirageAngle.setClipToView(True)
 plot_MirageAngle.setMouseEnabled(y=False)
 curve_MirageAngle = plot_MirageAngle.plot(pen=pg.mkPen('w', width=3))
 
-
+ptr_Mirage = 0
 def update_MirageAngle():
-    curve_MirageAngle.setData(x=timeArray, y=y8Array)
+    global ptr_Mirage
+    ptr_Mirage += 1
+    curve_MirageAngle.setData(x=timeArray[-numDataPoints:],
+                       y=y8Array[-numDataPoints:])
+    curve_MirageAngle.setPos(ptr_Mirage, 0)
 # ---------------------------------------------------------------------------------------------------------------
 tai_ExtraZPos = TimeAxisItem(orientation='bottom')
 tai_ExtraZPos.enableAutoSIPrefix(enable=False)
 plot_ExtraZPos = win.addPlot(row=3, col=0, labels={'left': "Extraction Z-Position (mm)"}, axisItems={
-    'bottom': tai_ExtraZPos}, title="Extraction Z-Position (enitre history)")
+    'bottom': tai_ExtraZPos}, title="Extraction Z-Position")
 # Use automatic downsampling and clipping to reduce the drawing load
 plot_ExtraZPos.setDownsampling(mode='peak')
 plot_ExtraZPos.setClipToView(True)
 plot_ExtraZPos.setMouseEnabled(y=False)
 curve_ExtraZPos = plot_ExtraZPos.plot(pen=pg.mkPen('w', width=3))
+ptr_Extra = 0
 def update_ExtraZPos():
-    curve_ExtraZPos.setData(x=timeArray, y=y7Array)
+    global ptr_Extra
+    ptr_Extra += 1
+    curve_ExtraZPos.setData(x=timeArray[-numDataPoints:],
+                       y=y7Array[-numDataPoints:])
+    curve_ExtraZPos.setPos(ptr_Extra, 0)
 
 
 # ---------------------------------------------------------------------------------------------------------------
-tai_DrillCurrent = TimeAxisItem(orientation='bottom')
-tai_DrillCurrent.enableAutoSIPrefix(enable=False)
-plot_DrillCurrent = win.addPlot(row=1, col=1, labels={'left': "Drill Current (Amps) "}, axisItems={
-    'bottom': tai_DrillCurrent}, title="Drill Current (enitre history)")
+tai_TotalCurrent = TimeAxisItem(orientation='bottom')
+tai_TotalCurrent.enableAutoSIPrefix(enable=False)
+plot_TotalCurrent = win.addPlot(row=1, col=1, labels={'left': "Total Current (Amps) "}, axisItems={
+    'bottom': tai_TotalCurrent}, title="Total Current")
 # Use automatic downsampling and clipping to reduce the drawing load
-plot_DrillCurrent.setDownsampling(mode='peak')
-plot_DrillCurrent.setClipToView(True)
-plot_DrillCurrent.setMouseEnabled(y=False)
-curve_DrillCurrent = plot_DrillCurrent.plot(pen=pg.mkPen('w', width=3))
-
-def update_DrillCurrent():
-    curve_DrillCurrent.setData(x=timeArray, y=y3Array)
+plot_TotalCurrent.setDownsampling(mode='peak')
+plot_TotalCurrent.setClipToView(True)
+plot_TotalCurrent.setMouseEnabled(y=False)
+curve_TotalCurrent = plot_TotalCurrent.plot(pen=pg.mkPen('w', width=3))
+ptr_Current = 0
+def update_TotalCurrent():
+    global ptr_Current
+    ptr_Current += 1
+    curve_TotalCurrent.setData(x=timeArray[-numDataPoints:],
+                       y=y3Array[-numDataPoints:])
+    curve_TotalCurrent.setPos(ptr_Current, 0)
 
 
 # ---------------------------------------------------------------------------------------------------------------
 tai_MSE = TimeAxisItem(orientation='bottom')
 tai_MSE.enableAutoSIPrefix(enable=False)
 plot_MSE = win.addPlot(row=3, col=1, labels={'left': "MSE (pa) "}, axisItems={
-    'bottom': tai_MSE}, title="MSE (enitre history)")
+    'bottom': tai_MSE}, title="MSE")
 # Use automatic downsampling and clipping to reduce the drawing load
 plot_MSE.setDownsampling(mode='peak')
 plot_MSE.setClipToView(True)
@@ -150,10 +183,12 @@ curve_MSE = plot_MSE.plot(pen=pg.mkPen('w', width=3))
 
 
 def update_MSE():
-    curve_MSE.setData(x=timeArray, y=y7Array)
+    return
+    # curve_MSE.setData(x=timeArray, y=y7Array)
 # ---------------------------------------------------------------------------------------------------------------
 
-#LoadCellLeftValue, LoadCellRightValue, DrillCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos
+# LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined
+
 def readLastLine():  # actually gets second to last line b/c last line might not be finished from matlab
     with open(fName, "rb") as file:  # binary mode, must do this to start at end of file
         lineNumber = 0  # from bottom
@@ -167,27 +202,31 @@ def readLastLine():  # actually gets second to last line b/c last line might not
             file.seek(-2, os.SEEK_CUR)
         good, trash = file.readline().decode().split("\r\n")
         dataArray = good.split(" ")
+
         timeArray.append(int(float(dataArray[0]) * TS_MULT_us))
-        y1Array.append(float(dataArray[1])*2)
-        y2Array.append(float(dataArray[2]))
-        y3Array.append(float(dataArray[3]))
-        y4Array.append(float(dataArray[4]))
-        y5Array.append(float(dataArray[5]))
-        y6Array.append(float(dataArray[6]))
-        y7Array.append(float(dataArray[7]))
-        y8Array.append(float(dataArray[8]))
+        y1Array.append(float(dataArray[1])) 
+        y2Array.append(float(dataArray[2])) 
+        y3Array.append(float(dataArray[3]))  # totalSystemCurrent !
+        y4Array.append(float(dataArray[4]))  # HeaterPower
+        y5Array.append(float(dataArray[5]))  # HeaterTemp
+        y6Array.append(float(dataArray[6]))  # DrillPos
+        y7Array.append(float(dataArray[7]))  # ExtractionPos
+        y8Array.append(float(dataArray[8]))  # MiragePos
+        y9Array.append(float(dataArray[9]))  # WOB
+
 
 
 
 
 def update():
+    readLastLine()
     update_WOB1()
-    update_WOB2()
-    update_DrillRPM()
+    update_HeaterTemp()
+    update_HeaterPower()
     update_DrillZpos()
     update_MirageAngle()
     update_ExtraZPos()
-    update_DrillCurrent()
+    update_TotalCurrent()
     update_MSE()
 
 def getLineCount():
@@ -220,7 +259,7 @@ def loadAllPreviousValues():  # returns an array of all data in file
 
 timer = pg.QtCore.QTimer()
 timer.timeout.connect(update)
-timer.start(100)  # ms
+timer.start(timerTime)  # ms
 
 # Start Qt event loop unless running in interactive mode or using pyside.
 if __name__ == '__main__':
