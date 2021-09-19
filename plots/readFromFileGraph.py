@@ -29,7 +29,7 @@ y6Array = []
 y7Array = []
 y8Array = []
 y9Array = []
-
+y10Array = []
 TS_MULT_us = 1e6
 
 
@@ -180,15 +180,20 @@ plot_MSE.setDownsampling(mode='peak')
 plot_MSE.setClipToView(True)
 plot_MSE.setMouseEnabled(y=False)
 curve_MSE = plot_MSE.plot(pen=pg.mkPen('w', width=3))
-
-
+ptr_MSE = 0
 def update_MSE():
-    return
-    # curve_MSE.setData(x=timeArray, y=y7Array)
+    global ptr_MSE
+    ptr_MSE += 1
+    curve_MSE.setData(x=timeArray[-numDataPoints:],
+                            y=y10Array[-numDataPoints:])
+    curve_MSE.setPos(ptr_MSE, 0)
 # ---------------------------------------------------------------------------------------------------------------
 
 # LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined
 
+
+#LoadCellLeftValue,LoadCellRightValue,TotalCurrent,HeaterPower,HeaterTemp,
+#DrillPos, ExtrPos, MiragePos, LoadCellCombined, drillTorque, mse_wob, mse_torque, MSE
 def readLastLine():  # actually gets second to last line b/c last line might not be finished from matlab
     with open(fName, "rb") as file:  # binary mode, must do this to start at end of file
         lineNumber = 0  # from bottom
@@ -213,6 +218,8 @@ def readLastLine():  # actually gets second to last line b/c last line might not
         y7Array.append(float(dataArray[7]))  # ExtractionPos
         y8Array.append(float(dataArray[8]))  # MiragePos
         y9Array.append(float(dataArray[9]))  # WOB
+        y10Array.append(float(dataArray[13]))  # MSE
+
 
 
 

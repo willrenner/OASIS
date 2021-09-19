@@ -16,6 +16,14 @@ fileID = fopen("../logs/logTest1.txt", 'a'); %appends to end of file, or creates
 changed = false;
 changedTimer = tic;
 count = 0;
+augerArea = pi * 0.04^2;
+n = 0.1; %drill efficiency
+rpm = 1; %rpm cancels out anyways
+global drillTorque; drillTorque = 0;
+global mse_wob; mse_wob = 0;
+global mse_torque; mse_torque = 0;
+global MSE; MSE = 0;
+
 
 while(running)
     try
@@ -36,7 +44,21 @@ while(running)
             sizeOfArr = size(dataArray);
             if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
                 %fprintf("LoadCellLeftValue: %4.2f, LoadCellRightValue: %4.2f, DrillCurrent: %4.2f, HeaterPower: %4.2f, HeaterTemp: %4.2f, DrillPos: %4.2f, Extr. Pos: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7));
-                incomingData = sprintf("LoadCellLeftValue: %4.2f \nLoadCellRightValue: %4.2f \nTotalCurrent: %4.2f \nHeaterPower: %4.f \nHeaterTemp: %4.2f \nDrillPos: %4.2f \nExtr.Pos: %4.2f \nMirage.Pos: %4.2f \nLoad Cell Combined: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7),dataArray(8),dataArray(9));
+                LoadCellLeftValue = dataArray(1);
+                LoadCellRightValue = dataArray(2);
+                TotalCurrent = dataArray(3);
+                HeaterPower = dataArray(4);
+                HeaterTemp = dataArray(5);
+                DrillPos = dataArray(6);
+                ExtrPos = dataArray(7);
+                MiragePos = dataArray(8);
+                LoadCellCombined = dataArray(9);
+                drillTorque = (totalCurrent * 120 * 60 * n) / (rpm * 2 * pi);
+                mse_wob = LoadCellCombined / augerArea;
+                mse_torque = drillTorque * rpm/(augerArea * ROP);
+                MSE = LoadCellCombined / augerArea + drillTorque * rpm/(augerArea * ROP);
+                incomingData = sprintf("LoadCellLeftValue: %4.2f \nLoadCellRightValue: %4.2f \nTotalCurrent: %4.2f \nHeaterPower: %4.f \nHeaterTemp: %4.2f \nDrillPos: %4.2f \nExtr.Pos: %4.2f \nMirage.Pos: %4.2f \nLoad Cell Combined: %4.2f \nDrill Torque: %4.2f \nmse_wob: %4.2f \nmse_torque: %4.2f \nMSE: %4.2f\n ", ...
+                    LoadCellLeftValue,LoadCellRightValue,TotalCurrent,HeaterPower,HeaterTemp,DrillPos,ExtrPos,MiragePos,LoadCellCombined, drillTorque, mse_wob, mse_torque, MSE);
                 appHandle.IncomingDataLabel.Text = incomingData; 
                 setAppData(appHandle, dataArray); %change data in app
                 writeDataToFile(dataArray, fileID) %log to file
@@ -61,12 +83,13 @@ fclose(fileID);
 clear all;
 
 
-
+%LoadCellLeftValue,LoadCellRightValue,TotalCurrent,HeaterPower,HeaterTemp,
+%DrillPos,ExtrPos,MiragePos,LoadCellCombined, drillTorque, mse_wob, mse_torque, MSE
 function writeDataToFile(da, fid)
     t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
     p = posixtime(t);
     %coming in from arduino:     //LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined ----- ACTIVE
-    fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6),da(7),da(8)); % Write to file  
+    fprintf(fid,'%.3f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\r\n', p,da(1),da(2),da(3),da(4),da(5),da(6),da(7),da(8),da(9), drillTorque, mse_wob, mse_torque, MSE); % Write to file  
 end
 
 function returnVal = getValuesFromApp(appHand) 
