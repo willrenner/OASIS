@@ -1,2 +1,1 @@
-
-    def __init__(self, *args, **kwargs):
+logTest1.txt
