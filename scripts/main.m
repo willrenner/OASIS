@@ -23,7 +23,7 @@ global drillTorque; drillTorque = 0;
 global mse_wob; mse_wob = 0;
 global mse_torque; mse_torque = 0;
 global MSE; MSE = 0;
-
+global ROP; ROP = 0; %m per sec
 
 while(running)
     try
@@ -55,6 +55,9 @@ while(running)
                 LoadCellCombined = dataArray(9);
                 drillTorque = (totalCurrent * 120 * 60 * n) / (rpm * 2 * pi);
                 mse_wob = LoadCellCombined / augerArea;
+                if (ROP < 0.0001) %0.1 mm per sec
+                    ROP = 0.0001;
+                end
                 mse_torque = drillTorque * rpm/(augerArea * ROP);
                 MSE = LoadCellCombined / augerArea + drillTorque * rpm/(augerArea * ROP);
                 incomingData = sprintf("LoadCellLeftValue: %4.2f \nLoadCellRightValue: %4.2f \nTotalCurrent: %4.2f \nHeaterPower: %4.f \nHeaterTemp: %4.2f \nDrillPos: %4.2f \nExtr.Pos: %4.2f \nMirage.Pos: %4.2f \nLoad Cell Combined: %4.2f \nDrill Torque: %4.2f \nmse_wob: %4.2f \nmse_torque: %4.2f \nMSE: %4.2f\n ", ...
@@ -93,10 +96,11 @@ function writeDataToFile(da, fid)
 end
 
 function returnVal = getValuesFromApp(appHand) 
-    
+    global ROP; %m per sec
     drillCmdMode = appHand.Drilling_Mode; %1 for manual ROP control, 0 for (automatic) pid control
     dir = appHand.ROP_Direction_Cmd; %drill dir
     speed = appHand.ROP_Speed_Cmd; %drill speed
+    ROP = speed / 1000;
     miragePosition = 99; %mirage position
     rpm = appHand.RPMSpeed_Cmd;
     heater = appHand.Heater_Cmd;

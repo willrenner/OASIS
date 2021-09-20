@@ -12,7 +12,7 @@
 struct controlCommands {
     int drillControlMode; // 1 for manual rop control, 0 for automatic (pid)
     int drillMovementDirection;
-    double speed;
+    float speed;
     int miragePositionCmd;
     int Drill_RPM;
     int heaterCmd;
@@ -30,7 +30,7 @@ struct controlCommands {
     float Kd_Heater;
     int TemperatureSetpoint;
     int HeaterPowerSetpoint;
-    int Extraction_ROP_Speed_Cmd;
+    float Extraction_ROP_Speed_Cmd;
     int Pump_ROP_Speed_Cmd;
     int Extraction_ROP_Dir_Cmd;
     int Pump_ROP_Dir_Cmd;
@@ -177,6 +177,7 @@ float    drillPos               = 0;  //mm from top
 float    mirageAngle            = 0;  //degrees from start
 
 unsigned long fpscount = 0;
+int fps = 0;
 unsigned long t1 = 0;
 unsigned long t2 = 0;
 auto amptimer = timer_create_default();
@@ -186,7 +187,7 @@ auto HeaterTimer = timer_create_default();
 void setup() {
     delay(1000);
     servo.attach(servoPin);
-    amptimer.every(200, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
+    amptimer.every(1000/currentSensorRate, getCurrentSensorValue); //calls func every set period, don't want to call every loop b/c analog read is slow
     LoadCellTimer.every(100, getLoadCells); //calls func every set period, don't want to call every loop b/c analog read is slow
     HeaterTimer.every(heaterDt, setHeaterPower);
     setupLoadCells();
@@ -223,12 +224,12 @@ void loop() {
     LoadCellTimer.tick();
     HeaterTimer.tick();
 
-    // fpsCounter();
+    fpsCounter();
     checkRelayCmds();
     checkLoadCellTare();
 //  checkLimitSwitches(); //can't bc not tied low (will bounce around if not actually connected)
-    getdrillRPM();
-    getMSE();
+    // getdrillRPM();
+    // getMSE();
     setStepperSpeeds();
     // setMiragePosition();    
     // MirageStepper.run();
@@ -261,6 +262,7 @@ void sendDataOut() {
     Serial.print(MirageStepper.currentPosition(), 2); // in # of steps
     Serial.print(",");
     Serial.print(LoadCellCombined, 2); 
+    Serial.print(",");
     Serial.print("\n"); //serial terminator
 }
 void serialEvent() {
@@ -300,7 +302,7 @@ void buildDataStruct() {
     //direction
     cmds.drillMovementDirection = atoi(arrayOfcstring[1]);
     //speed
-    cmds.speed = atof(arrayOfcstring[2]);
+    cmds.speed = atof(arrayOfcstring[2]) / 100.0;//because we mult by 100 on matlab app side
     //mirage pos
     cmds.miragePositionCmd = atoi(arrayOfcstring[3]);
     //rpm
@@ -327,7 +329,7 @@ void buildDataStruct() {
     cmds.Kd_Heater = atoi(arrayOfcstring[17]) / 100.0;
     cmds.TemperatureSetpoint = atoi(arrayOfcstring[18]);
     cmds.HeaterPowerSetpoint = atoi(arrayOfcstring[19]);
-    cmds.Extraction_ROP_Speed_Cmd = atoi(arrayOfcstring[20]);
+    cmds.Extraction_ROP_Speed_Cmd = atoi(arrayOfcstring[20]) / 100.0; //because we mult by 100 on matlab app side
     // Serial.print("cmds.Pump_ROP_speed_Cmd1: "); Serial.print(cmds.Pump_ROP_Speed_Cmd);
     cmds.Pump_ROP_Speed_Cmd = atoi(arrayOfcstring[21]);
     // Serial.print("|| cmds.Pump_ROP_speed_Cmd2: "); Serial.print(cmds.Pump_ROP_Speed_Cmd);
@@ -504,8 +506,9 @@ void getdrillRPM() {
 void fpsCounter() {
     t1 = millis();
     if ((t1 - t2) > 1000) {
-        Serial.print("FPS: ");
-        Serial.println(fpscount);
+        // Serial.print("FPS: ");
+        fps = fpscount;
+        // Serial.println(fpscount);
         fpscount = 0;
         t2 = millis();
     }
@@ -558,7 +561,7 @@ bool setHeaterPower(void*) {
         heaterTemperatureError = cmds.HeaterPowerSetpoint - heaterTemperature;
 
         heaterTemperatureErrorSum += heaterTemperatureError * heaterDt / 1000.0;
-
+        heaterTemperatureErrorSum = constrain(heaterTemperatureErrorSum, 0, 2000);
         
         heaterPIDoutput = heaterTemperatureError * cmds.Kp_Heater + heaterTemperatureErrorSum * cmds.Ki_Heater;
         heaterPIDoutput = constrain(heaterPIDoutput, 0.0, 100.0);
@@ -581,7 +584,10 @@ bool setHeaterPower(void*) {
             Serial.print(heaterTemperatureErrorSum * cmds.Ki_Heater);
 
             Serial.print(" || heaterPIDoutput: ");
-            Serial.println(heaterPIDoutput);
+            Serial.print(heaterPIDoutput);
+
+            Serial.print(" || FPS: ");
+            Serial.println(fps);
         #endif
     }
     return true;
