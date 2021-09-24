@@ -6,9 +6,9 @@
 #include <Wire.h>
 #include <Adafruit_ADS1X15.h>
 
-#define PID_SERIAL_LOGGER true
-#define PUMPCMDS_SERIAL_LOGGER false
 
+#define PID_SERIAL_LOGGER false
+#define PUMPCMDS_SERIAL_LOGGER false
 struct controlCommands {
     int drillControlMode; // 1 for manual rop control, 0 for automatic (pid)
     int drillMovementDirection;
@@ -71,8 +71,8 @@ controlCommands cmds = {
     .DrillPower = 0
 };
 
-
-#define numCmds 27 //num of vars in struct above
+#define gravity -9.81
+#define numCmds 28 //num of vars in struct above
 #define sizeOfCmd 300 //number of chars sent from matlab to arduino must be less than this
 #define limitSwitchPin 7
 #define drillStepPin 5 //stepper driver 4
@@ -83,17 +83,18 @@ controlCommands cmds = {
 #define extractionDirPin 8 
 #define pumpStepPin 4
 #define pumpDirPin 10
-const int LoadCellLeftData = 36;
-const int LoadCellLeftClock = 38;
-const int LoadCellRightData = 40;
-const int LoadCellRightClock = 42;
-#define heaterRelayPin 6
+const int LoadCellLeftData = 37;
+const int LoadCellLeftClock = 39;
+const int LoadCellRightData = 43;
+const int LoadCellRightClock = 41;
 #define pumpRelayPin 7
-#define drillRelayPin 34
+#define drillRelayPin 53
+#define heaterRelayPin 36
+
 #define currentSensorPin A0
-#define thermocoupleCLK 28 //GREEN
-#define thermocoupleDO 30 //BLUE
-#define thermocoupleCS 29 //WHITE
+#define thermocoupleCLK 47 //green
+#define thermocoupleDO 49 //blue
+#define thermocoupleCS 45 //white
 #define heaterModulePin 13
 #define servoPin 12
 
@@ -128,7 +129,7 @@ Adafruit_ADS1015 ads1115;
 unsigned long currTime           = 0;
 unsigned long prevTime           = 0;
 // const    unsigned long checkRate = 20;     //ms
-const    unsigned long sendRate  = 100;    //ms
+const    unsigned long sendRate  = 250;    //ms
 bool     incomingStringComplete  = false;  // whether the string is complete
 int      currPosOfChar           = 0;
 
@@ -137,7 +138,7 @@ char* arrayOfcstring[numCmds];
 char* myPointer;
 
 //Amp array
-#define currentSensorRate 5//240
+#define currentSensorRate 50//240
 // float ampArray[currentSensorRate]; //1 sec per final reading
 int ampCounter = 0;
 int16_t ads1115Results;
@@ -193,13 +194,13 @@ void setup() {
     setupLoadCells();
     Serial.println("Getting differential reading from AIN0 (P) and AIN1 (N)");
     Serial.println("ADC Range: +/- 6.144V (1 bit = 3mV)");
-   ads1115.begin();
+    ads1115.begin();
 
     pinMode(RPMsensor_interupt_pin, INPUT);
     pinMode(limitSwitchPin, INPUT);
     pinMode(heaterRelayPin, OUTPUT);
     pinMode(pumpRelayPin, OUTPUT);
-    attachInterrupt(digitalPinToInterrupt(RPMsensor_interupt_pin), addValue, RISING);
+    // attachInterrupt(digitalPinToInterrupt(RPMsensor_interupt_pin), addValue, RISING);
 
     // pinMode(AC_pin, OUTPUT);
     // attachInterrupt(0, Drill_RPM, FALLING); //actuator when pin is falling high to low to form square wave
@@ -213,7 +214,7 @@ void setup() {
     MirageStepper.setAcceleration(50); //Steps/sec^2
     Serial.begin(115200);
     while (!Serial) {
-        ; // wait for serial port to connect. Needed for native USB port only
+        Serial.println("waiting on serial"); // wait for serial port to connect. Needed for native USB port only
     }
     Serial.flush();
 }
@@ -227,12 +228,11 @@ void loop() {
     fpsCounter();
     checkRelayCmds();
     checkLoadCellTare();
-//  checkLimitSwitches(); //can't bc not tied low (will bounce around if not actually connected)
     // getdrillRPM();
     // getMSE();
     setStepperSpeeds();
-    // setMiragePosition();    
-    // MirageStepper.run();
+    /// setMiragePosition();    
+    /// MirageStepper.run();
     MirageStepper.runSpeed();   
     DrillStepper.runSpeed();   
     PumpStepper.runSpeed();
@@ -289,7 +289,6 @@ void formatIncomingData() {
         myPointer = strtok(NULL, ",");
         count++;
     }
-    // Serial.println("here: " + String(arrayOfcstring[1]));
 }
 void buildDataStruct() { 
 //     % [drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare,
@@ -320,6 +319,8 @@ void buildDataStruct() {
     // if (cmds.fakeZero == 1) drillLimitSwitchActive = 1;
     // else drillLimitSwitchActive = 0;
     cmds.drillCmd = atoi(arrayOfcstring[10]);
+    Serial.print("Drill cmd");
+    Serial.println(cmds.drillCmd);
     cmds.WOBsetpoint = atoi(arrayOfcstring[11]);
     cmds.Kp_Drill = atoi(arrayOfcstring[12]);
     cmds.Ki_Drill = atoi(arrayOfcstring[13]);
@@ -367,20 +368,15 @@ void doHousekeeping() {
 // }
 
 void checkRelayCmds() {
-    // if (cmds.pumpCmd == 0) {
-    //     digitalWrite(pumpRelayPin, HIGH);
-    // }
-    // else digitalWrite(pumpRelayPin, LOW);
-
     if (cmds.heaterCmd == 0) {
         digitalWrite(heaterRelayPin, HIGH);
     }//
-    else digitalWrite(heaterRelayPin, LOW);
+    else {digitalWrite(heaterRelayPin, LOW);}
 
     if (cmds.drillCmd == 0) {
         digitalWrite(drillRelayPin, HIGH);
     }
-    else digitalWrite(drillRelayPin, LOW);
+    else {digitalWrite(drillRelayPin, LOW);}
 }
 
 void getMSE() {
@@ -389,15 +385,7 @@ void getMSE() {
     // MSE = WOB/augerArea + drillCurrent*drillRPM/(augerArea*ROP); //MSE equation, assuming torque is proportional to current
 }
 
-void checkLimitSwitches() {
-    // if (digitalRead(limitSwitchPin) == LOW) {
-    //     drillLimitSwitchActive = 1;
-    //     // Serial.println("Limit switch activated!");
-    // }
-    // else {
-    //     drillLimitSwitchActive = 0;
-    // }
-}
+
 void setROP() {
     // WOBcurrTime = micros();
     // WOBelapsedTime = (float)(WOBcurrTime - WOBprevTime);
@@ -459,7 +447,7 @@ void checkZeroCommands() {
 void setupLoadCells() {
     // Define calibration values given by the calibration script
     float calval_LoadCell;
-    calval_LoadCell = 59900;//-62390;//-54728; //7.3
+    calval_LoadCell = 82734;//1.381//59900;//-62390;//-54728; //7.3
     LoadCellLeft.begin();
     LoadCellRight.begin();
     unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
@@ -535,13 +523,11 @@ bool getCurrentSensorValue(void*) { //analog read is slow
 //  Serial.println(drillCurrent,2);
   return true;
 }
-// #define currentSensorRate 240
-// float ampArray[currentSensorRate]; //1 sec per final reading
-// int ampCounter = 0;
+
 
 bool getLoadCells(void*) {
-    if (LoadCellLeft.update()) LoadCellLeftValue = LoadCellLeft.getData(); //this is slow culprit
-    if (LoadCellRight.update()) LoadCellRightValue = LoadCellRight.getData(); //this is slow culprit
+    if (LoadCellLeft.update()) LoadCellLeftValue = LoadCellLeft.getData() * gravity; //this is slow culprit
+    if (LoadCellRight.update()) LoadCellRightValue = LoadCellRight.getData()* gravity; //this is slow culprit
     LoadCellCombined = LoadCellLeftValue + LoadCellRightValue;
     // Serial.println(LoadCellCombined, 2);
 
@@ -550,45 +536,47 @@ bool getLoadCells(void*) {
 bool setHeaterPower(void*) {
     //ignore next line
     servo.write(cmds.DrillPower * -1 + 180); //switch rotation direction
+    analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint * 2.55); //heater power from 0 to 100 percent
 
     // analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint * 2.55);
     heaterTemperature = (float)thermocouple.readFahrenheit();
 
     if (isnan(heaterTemperature)) {
-        Serial.println("ERROR: Thermcouple temperature NAN!");
+        heaterTemperature = 9999;
     }
-    else {
-        heaterTemperatureError = cmds.HeaterPowerSetpoint - heaterTemperature;
+    // else {
+    //     // heaterTemperatureError = cmds.HeaterPowerSetpoint - heaterTemperature;
 
-        heaterTemperatureErrorSum += heaterTemperatureError * heaterDt / 1000.0;
-        heaterTemperatureErrorSum = constrain(heaterTemperatureErrorSum, 0, 2000);
+    //     // heaterTemperatureErrorSum += heaterTemperatureError * heaterDt / 1000.0;
+    //     // heaterTemperatureErrorSum = constrain(heaterTemperatureErrorSum, 0, 2000);
         
-        heaterPIDoutput = heaterTemperatureError * cmds.Kp_Heater + heaterTemperatureErrorSum * cmds.Ki_Heater;
-        heaterPIDoutput = constrain(heaterPIDoutput, 0.0, 100.0);
-        analogWrite(heaterModulePin, heaterPIDoutput * 2.55); //heater power from 0 to 100 percent
-        // analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint); //heater power from 0 to 100 percent
+    //     // heaterPIDoutput = heaterTemperatureError * cmds.Kp_Heater + heaterTemperatureErrorSum * cmds.Ki_Heater;
+    //     // heaterPIDoutput = constrain(heaterPIDoutput, 0.0, 100.0);
+    //     // analogWrite(heaterModulePin, heaterPIDoutput * 2.55); //heater power from 0 to 100 percent
+
+    //     // analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint); //heater power from 0 to 100 percent
         
-        #if PID_SERIAL_LOGGER == true
-            Serial.print(" || kp: ");
-            Serial.print(cmds.Kp_Heater);
-            Serial.print(" || DrillPower: ");
-            Serial.print(cmds.DrillPower);
-            Serial.print(" || heaterTemperatureError: ");
-            Serial.print(heaterTemperatureError);
-            Serial.print(" || heaterTemperatureErrorSum: ");
-            Serial.print(heaterTemperatureErrorSum);
+    //     #if PID_SERIAL_LOGGER == true
+    //         Serial.print(" || FPS: ");
+    //         Serial.print(fps);
+    //         Serial.print(" || kp: ");
+    //         Serial.print(cmds.Kp_Heater);
+    //         Serial.print(" || DrillPower: ");
+    //         Serial.print(cmds.DrillPower);
+    //         Serial.print(" || heaterTemperatureError: ");
+    //         Serial.print(heaterTemperatureError);
+    //         Serial.print(" || heaterTemperatureErrorSum: ");
+    //         Serial.print(heaterTemperatureErrorSum);
 
-            Serial.print(" || heaterTemperatureError * kp: ");
-            Serial.print(heaterTemperatureError * cmds.Kp_Heater);
-            Serial.print(" || heaterTemperatureErrorSum * ki: ");
-            Serial.print(heaterTemperatureErrorSum * cmds.Ki_Heater);
+    //         Serial.print(" || heaterTemperatureError * kp: ");
+    //         Serial.print(heaterTemperatureError * cmds.Kp_Heater);
+    //         Serial.print(" || heaterTemperatureErrorSum * ki: ");
+    //         Serial.print(heaterTemperatureErrorSum * cmds.Ki_Heater);
 
-            Serial.print(" || heaterPIDoutput: ");
-            Serial.print(heaterPIDoutput);
+    //         Serial.print(" || heaterPIDoutput: ");
+    //         Serial.println(heaterPIDoutput);
 
-            Serial.print(" || FPS: ");
-            Serial.println(fps);
-        #endif
-    }
+    //     #endif
+    // }
     return true;
 }

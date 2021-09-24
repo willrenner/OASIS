@@ -18,10 +18,10 @@ ________________________________________________________________________________
 // declare pins: ------------- Must do before operation
 const int HX711_data_1 = 12;
 const int HX711_clck_1 = 13;
-const int LoadCellLeftData = 36;
-const int LoadCellLeftClock = 38;
-const int LoadCellRightData = 40;
-const int LoadCellRightClock = 42;
+const int LoadCellLeftData = 37;
+const int LoadCellLeftClock = 39;
+const int LoadCellRightData = 41;
+const int LoadCellRightClock = 43;
 
 //Match pins to adc/sensor modules
 HX711_ADC LoadCell(LoadCellRightData, LoadCellRightClock); // Module 1 for drilling system

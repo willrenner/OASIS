@@ -10,8 +10,8 @@ pg.setConfigOption('foreground', 'w')
 win = pg.GraphicsLayoutWidget(show=True)
 win.setWindowTitle('AARC Telem')
 # fName = './logs/abcd.txt'
-# fName = 'C:/Users/willr/Desktop/OASIS/logs/logTest1.txt'
-fName = 'C:/Users/Will/Desktop/OASIS/logs/logTest1.txt'
+fName = 'C:/Users/willr/Desktop/OASIS/logs/logTest1.txt'
+# fName = 'C:/Users/Will/Desktop/OASIS/logs/logTest1.txt'
 # LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined
 
 numSeconds = 20  # sec

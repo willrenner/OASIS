@@ -16,7 +16,8 @@ fileID = fopen("../logs/logTest1.txt", 'a'); %appends to end of file, or creates
 changed = false;
 changedTimer = tic;
 count = 0;
-augerArea = pi * 0.04^2;
+radius = 0.01905;
+augerArea = pi * radius^2;
 n = 0.1; %drill efficiency
 rpm = 1; %rpm cancels out anyways
 global drillTorque; drillTorque = 0;
@@ -44,24 +45,25 @@ while(running)
             sizeOfArr = size(dataArray);
             if (sizeOfArr(2) > 1) %if array contains a comma, meaning not a Serial debug statement
                 %fprintf("LoadCellLeftValue: %4.2f, LoadCellRightValue: %4.2f, DrillCurrent: %4.2f, HeaterPower: %4.2f, HeaterTemp: %4.2f, DrillPos: %4.2f, Extr. Pos: %4.2f\n ",dataArray(1),dataArray(2),dataArray(3),dataArray(4),dataArray(5),dataArray(6),dataArray(7));
-                LoadCellLeftValue = dataArray(1);
-                LoadCellRightValue = dataArray(2);
-                TotalCurrent = dataArray(3);
-                HeaterPower = dataArray(4);
-                HeaterTemp = dataArray(5);
-                DrillPos = dataArray(6);
-                ExtrPos = dataArray(7);
-                MiragePos = dataArray(8);
-                LoadCellCombined = dataArray(9);
-                drillTorque = (totalCurrent * 120 * 60 * n) / (rpm * 2 * pi);
+                LoadCellLeftValue = str2double(dataArray(1));
+                LoadCellRightValue = str2double(dataArray(2));
+                TotalCurrent = str2double(dataArray(3));
+                HeaterPower = str2double(dataArray(4));
+                HeaterTemp = str2double(dataArray(5));
+                DrillPos = str2double(dataArray(6));
+                ExtrPos = str2double(dataArray(7));
+                MiragePos = str2double(dataArray(8));
+                LoadCellCombined = str2double(dataArray(9));
+                drillTorque = (TotalCurrent * 120 * 60 * n) / (rpm * 2 * pi);
                 mse_wob = LoadCellCombined / augerArea;
                 if (ROP < 0.0001) %0.1 mm per sec
-                    ROP = 0.0001;
+                    ROP = 9999999999;
                 end
                 mse_torque = drillTorque * rpm/(augerArea * ROP);
                 MSE = LoadCellCombined / augerArea + drillTorque * rpm/(augerArea * ROP);
                 incomingData = sprintf("LoadCellLeftValue: %4.2f \nLoadCellRightValue: %4.2f \nTotalCurrent: %4.2f \nHeaterPower: %4.f \nHeaterTemp: %4.2f \nDrillPos: %4.2f \nExtr.Pos: %4.2f \nMirage.Pos: %4.2f \nLoad Cell Combined: %4.2f \nDrill Torque: %4.2f \nmse_wob: %4.2f \nmse_torque: %4.2f \nMSE: %4.2f\n ", ...
                     LoadCellLeftValue,LoadCellRightValue,TotalCurrent,HeaterPower,HeaterTemp,DrillPos,ExtrPos,MiragePos,LoadCellCombined, drillTorque, mse_wob, mse_torque, MSE);
+                
                 appHandle.IncomingDataLabel.Text = incomingData; 
                 setAppData(appHandle, dataArray); %change data in app
                 writeDataToFile(dataArray, fileID) %log to file
@@ -89,6 +91,7 @@ clear all;
 %LoadCellLeftValue,LoadCellRightValue,TotalCurrent,HeaterPower,HeaterTemp,
 %DrillPos,ExtrPos,MiragePos,LoadCellCombined, drillTorque, mse_wob, mse_torque, MSE
 function writeDataToFile(da, fid)
+    global drillTorque;global mse_wob; global mse_torque; global MSE;
     t = datetime('now','TimeZone','local','Format','d-MMM-y HH:mm:ss.SSS Z');
     p = posixtime(t);
     %coming in from arduino:     //LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined ----- ACTIVE
