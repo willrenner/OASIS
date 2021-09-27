@@ -167,7 +167,7 @@ float heaterTemperatureError = 0;
 float heaterPIDoutput = 0;
 float heaterTemperatureErrorSum = 0;
 float heaterDt = 100; //ms
-
+float lastHeaterTemperature = 0;
 
 int      drillLimitSwitchActive = 0;  //1 for active
 // unsigned long checkTime         = 0;
@@ -228,6 +228,7 @@ void loop() {
     fpsCounter();
     checkRelayCmds();
     checkLoadCellTare();
+    checkZeroCommands();
     // getdrillRPM();
     // getMSE();
     setStepperSpeeds();
@@ -259,7 +260,7 @@ void sendDataOut() {
     Serial.print(",");
     Serial.print(ExtractionStepper.currentPosition() * 8 / 400.0, 2);// 8 / 400 is ratio to get from steps to mm
     Serial.print(",");
-    Serial.print(MirageStepper.currentPosition(), 2); // in # of steps
+    Serial.print(0.0, 2); // in # of steps //MirageStepper.currentPosition()
     Serial.print(",");
     Serial.print(LoadCellCombined, 2); 
     Serial.print(",");
@@ -319,8 +320,7 @@ void buildDataStruct() {
     // if (cmds.fakeZero == 1) drillLimitSwitchActive = 1;
     // else drillLimitSwitchActive = 0;
     cmds.drillCmd = atoi(arrayOfcstring[10]);
-    Serial.print("Drill cmd");
-    Serial.println(cmds.drillCmd);
+    
     cmds.WOBsetpoint = atoi(arrayOfcstring[11]);
     cmds.Kp_Drill = atoi(arrayOfcstring[12]);
     cmds.Ki_Drill = atoi(arrayOfcstring[13]);
@@ -341,6 +341,8 @@ void buildDataStruct() {
     cmds.Mirage_Speed_Cmd = atoi(arrayOfcstring[24]);
     cmds.Mirage_Direction_Cmd = atoi(arrayOfcstring[25]);
     cmds.ExtractionZeroCmd = atoi(arrayOfcstring[26]);
+    // Serial.print("extr zero cmd");
+    // Serial.println(cmds.ExtractionZeroCmd);
     cmds.DrillPower = atoi(arrayOfcstring[27]);
 }
 // % [drillCmdMode, dir, speed, miragePosition, rpm, heater, pump, tare,
@@ -537,12 +539,12 @@ bool setHeaterPower(void*) {
     //ignore next line
     servo.write(cmds.DrillPower * -1 + 180); //switch rotation direction
     analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint * 2.55); //heater power from 0 to 100 percent
-
+    lastHeaterTemperature = heaterTemperature;
     // analogWrite(heaterModulePin, cmds.HeaterPowerSetpoint * 2.55);
     heaterTemperature = (float)thermocouple.readFahrenheit();
 
     if (isnan(heaterTemperature)) {
-        heaterTemperature = 9999;
+        heaterTemperature = lastHeaterTemperature;
     }
     // else {
     //     // heaterTemperatureError = cmds.HeaterPowerSetpoint - heaterTemperature;

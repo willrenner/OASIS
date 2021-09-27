@@ -12,7 +12,7 @@ serialPort = serialport("COM3", 115200);
 configureTerminator(serialPort,"LF"); %sets newline as line ending
 flush(serialPort); %so that data doesnt get clogged/backed up
 configureCallback(serialPort,"terminator",@readSerialData)
-fileID = fopen("../logs/logTest1.txt", 'a'); %appends to end of file, or creates file and writes to it
+fileID = fopen("../logs/Run_3.txt", 'a'); %appends to end of file, or creates file and writes to it
 changed = false;
 changedTimer = tic;
 count = 0;
@@ -63,7 +63,8 @@ while(running)
                 MSE = LoadCellCombined / augerArea + drillTorque * rpm/(augerArea * ROP);
                 incomingData = sprintf("LoadCellLeftValue: %4.2f \nLoadCellRightValue: %4.2f \nTotalCurrent: %4.2f \nHeaterPower: %4.f \nHeaterTemp: %4.2f \nDrillPos: %4.2f \nExtr.Pos: %4.2f \nMirage.Pos: %4.2f \nLoad Cell Combined: %4.2f \nDrill Torque: %4.2f \nmse_wob: %4.2f \nmse_torque: %4.2f \nMSE: %4.2f\n ", ...
                     LoadCellLeftValue,LoadCellRightValue,TotalCurrent,HeaterPower,HeaterTemp,DrillPos,ExtrPos,MiragePos,LoadCellCombined, drillTorque, mse_wob, mse_torque, MSE);
-                
+                incomingWOB = sprintf("WOB: %4.2f", LoadCellCombined);
+                appHandle.IncomingDebugDataLabel_3.Text = incomingWOB;
                 appHandle.IncomingDataLabel.Text = incomingData; 
                 setAppData(appHandle, dataArray); %change data in app
                 writeDataToFile(dataArray, fileID) %log to file

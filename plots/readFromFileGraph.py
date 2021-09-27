@@ -10,10 +10,10 @@ pg.setConfigOption('foreground', 'w')
 win = pg.GraphicsLayoutWidget(show=True)
 win.setWindowTitle('AARC Telem')
 # fName = './logs/abcd.txt'
-fName = 'C:/Users/willr/Desktop/OASIS/logs/logTest1.txt'
+fName = 'C:/Users/willr/Desktop/OASIS/logs/Run_3.txt'
 # fName = 'C:/Users/Will/Desktop/OASIS/logs/logTest1.txt'
 # LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined
-
+#LoadCellLeftValue, LoadCellRightValue, totalSystemCurrent, HeaterPower, HeaterTemp, DrillPos, ExtractionPos, MiragePos, LoadCellCombined ----- ACTIVE
 numSeconds = 20  # sec
 timerTime = 100  # ms
 numDataPoints = int(numSeconds / (timerTime / 1000))
@@ -58,7 +58,7 @@ ptr_WOB = 0
 def update_WOB1():
     global ptr_WOB
     ptr_WOB += 1
-    curve_WOB.setData(x=timeArray[-numDataPoints:], y=y1Array[-numDataPoints:])
+    curve_WOB.setData(x=timeArray[-numDataPoints:], y=y9Array[-numDataPoints:])
     curve_WOB.setPos(ptr_WOB, 0)
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -76,7 +76,7 @@ def update_HeaterTemp():
     global ptr_HeaterTemp
     ptr_HeaterTemp += 1
     curve_HeaterTemp.setData(x=timeArray[-numDataPoints:],
-                       y=y4Array[-numDataPoints:])
+                       y=y5Array[-numDataPoints:])
     curve_HeaterTemp.setPos(ptr_HeaterTemp, 0)
 # ---------------------------------------------------------------------------------------------------------------
 tai_HeaterPower = TimeAxisItem(orientation='bottom')
@@ -94,7 +94,7 @@ def update_HeaterPower():
     global ptr_HeaterPower
     ptr_HeaterPower += 1
     curve_HeaterPower.setData(x=timeArray[-numDataPoints:],
-                       y=y5Array[-numDataPoints:])
+                       y=y4Array[-numDataPoints:])
     curve_HeaterPower.setPos(ptr_HeaterPower, 0)
 # ---------------------------------------------------------------------------------------------------------------
 tai_DrillZPos = TimeAxisItem(orientation='bottom')
